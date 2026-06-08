@@ -93,11 +93,13 @@ def topple_wave(grid: np.ndarray) -> tuple[int, int]:
 We then define `run_sandpile_experiment()`, which runs the full simulation by dropping grains one by one and capturing grid states and avalanche statistics along the way.
 
 We track the following primary statistics:
+
 - boundary grain loss (grains that fall off the grid)
 - avalanche sizes in topples (one value per avalanche)
 - avalanche sizes in waves (one value per avalanche)
 
 From the two avalanche size arrays, we derive:
+
 - number of topples: sum of avalanche sizes in topples
 - number of waves: sum of avalanche sizes in waves
 - number of avalanches: length of the avalanche arrays

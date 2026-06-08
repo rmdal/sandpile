@@ -193,8 +193,20 @@ eyJhdHRyIjp7ImNhcHRpb24iOiJUb3BwbGluZyBBbGdvcml0aG0iLCJlZGl0Ijp0cnVlLCJldmFsIjp0
 </script>
 </div>
 <p>We then define <code>run_sandpile_experiment()</code>, which runs the full simulation by dropping grains one by one and capturing grid states and avalanche statistics along the way.</p>
-<p>We track the following primary statistics: - boundary grain loss (grains that fall off the grid) - avalanche sizes in topples (one value per avalanche) - avalanche sizes in waves (one value per avalanche)</p>
-<p>From the two avalanche size arrays, we derive: - number of topples: sum of avalanche sizes in topples - number of waves: sum of avalanche sizes in waves - number of avalanches: length of the avalanche arrays - largest avalanche topples count: max of avalanche sizes in topples - largest avalanche waves count: max of avalanche sizes in waves</p>
+<p>We track the following primary statistics:</p>
+<ul>
+<li>boundary grain loss (grains that fall off the grid)</li>
+<li>avalanche sizes in topples (one value per avalanche)</li>
+<li>avalanche sizes in waves (one value per avalanche)</li>
+</ul>
+<p>From the two avalanche size arrays, we derive:</p>
+<ul>
+<li>number of topples: sum of avalanche sizes in topples</li>
+<li>number of waves: sum of avalanche sizes in waves</li>
+<li>number of avalanches: length of the avalanche arrays</li>
+<li>largest avalanche topples count: max of avalanche sizes in topples</li>
+<li>largest avalanche waves count: max of avalanche sizes in waves</li>
+</ul>
 <p>In addition to <code>numpy</code>, we use <code>xarray</code> for labeled multidimensional data handling. <code>xarray.DataArray</code> lets us store grid snapshots and related metadata in a structured form, which makes downstream analysis and visualization easier.</p>
 <div>
 <div id="pyodide-3" class="exercise-cell">
