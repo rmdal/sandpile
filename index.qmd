@@ -1,0 +1,7 @@
+---
+title: "The Sandpile Model"
+fontsize: 95%
+---
+
+* Part 1([site](part1.qmd) or [colab notebook](https://colab.research.google.com/github/rmdal/sandpile/blob/master/docs/sandpile_part1.ipynb))
+* Part 2([site](part2.qmd) or [colab notebook](https://colab.research.google.com/github/rmdal/sandpile/blob/master/docs/sandpile_part2.ipynb))

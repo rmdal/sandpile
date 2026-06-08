@@ -1,0 +1,15 @@
+project:
+  type: website
+  output-dir: docs
+  render: 
+    - "*.qmd"
+    - "!*.ipynb"
+  resources:
+    - "*.ipynb"
+
+website: 
+  page-footer: 
+    left: Prepared by Jay (assisted by LLMs) | Back to [MDAL Computing](https://rmdal.github.io/)
+    right: Built with [Quarto](https://quarto.org/) and [Quarto-live](https://r-wasm.github.io/quarto-live/)
+ 
+theme: united

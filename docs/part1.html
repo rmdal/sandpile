@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.38">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>The Sandpile Model - Part 1</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="site_libs/clipboard/clipboard.min.js"></script>
+<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="site_libs/quarto-search/fuse.min.js"></script>
+<script src="site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="./">
+<script src="site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="site_libs/quarto-html/popper.min.js"></script>
+<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="site_libs/quarto-html/anchor.min.js"></script>
+<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-15634bcf2e68342d4ad2dfa704d543f6.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="site_libs/bootstrap/bootstrap-0b671566c4d056ba875055d82198ceb5.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script src="site_libs/quarto-contrib/live-runtime/live-runtime.js" type="module"></script>
+<link href="site_libs/quarto-contrib/live-runtime/live-runtime.css" rel="stylesheet">
+<script id="quarto-search-options" type="application/json">{
+  "location": "sidebar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "start",
+  "type": "textbox",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<script type="module" src="site_libs/quarto-ojs/quarto-ojs-runtime.js"></script>
+<link href="site_libs/quarto-ojs/quarto-ojs.css" rel="stylesheet">
+
+
+</head>
+
+<body class="quarto-light">
+
+<div id="quarto-search-results"></div>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#intro" id="toc-intro" class="nav-link active" data-scroll-target="#intro">Intro</a></li>
+  <li><a href="#simulation" id="toc-simulation" class="nav-link" data-scroll-target="#simulation">Simulation</a>
+  <ul class="collapse">
+  <li><a href="#a-simple-example" id="toc-a-simple-example" class="nav-link" data-scroll-target="#a-simple-example">A simple example</a></li>
+  <li><a href="#full-implementation" id="toc-full-implementation" class="nav-link" data-scroll-target="#full-implementation">Full Implementation</a></li>
+  </ul></li>
+  <li><a href="#visualization" id="toc-visualization" class="nav-link" data-scroll-target="#visualization">Visualization</a></li>
+  <li><a href="#exercise" id="toc-exercise" class="nav-link" data-scroll-target="#exercise">Exercise</a></li>
+  <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references">References</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content page-columns page-full" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">The Sandpile Model - Part 1</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="intro" class="level2">
+<h2 class="anchored" data-anchor-id="intro">Intro</h2>
+<p>In this short workshop, we implement a simple sandpile model on a 2D grid. The sandpile model is a cellular automaton that simulates the behavior of granular materials. Each cell in the grid can hold a certain number of “grains of sand”. When the number of grains in a cell exceeds a certain threshold, the cell “topples”, distributing its grains to neighboring cells. This process can lead to complex patterns and self-organized criticality.</p>
+<p>Let’s define the sandpile model more concretely: - We have a 2D grid of size <code>N x N</code>, where each cell can hold an integer number of grains. - We start with an initial configuration of grains in the grid. - We repeatedly apply the following rules until no cell has more than 3 grains: - If a cell has 4 or more grains, it topples: - The cell loses 4 grains. - Each of the four orthogonal neighbors (up, down, left, right) receives 1 grain. - If a neighbor is outside the grid, the grain is lost (it falls off the edge). - The process continues until all cells have 3 or fewer grains.</p>
+<p>We implement this model in Python and visualize <em>the final state</em> of the sandpile after it stabilizes. Let’s get started!</p>
+<div>
+<div id="pyodide-1" class="exercise-cell">
+
+</div>
+<script type="pyodide-1-contents">
+eyJhdHRyIjp7ImNhcHRpb24iOiJJbXBvcnRzIiwiZWRpdCI6dHJ1ZSwiZXZhbCI6dHJ1ZX0sImNvZGUiOiJpbXBvcnQgdGltZVxuaW1wb3J0IG51bXB5IGFzIG5wXG5pbXBvcnQgcGxvdGx5LmV4cHJlc3MgYXMgcHgifQ==
+</script>
+</div>
+</section>
+<section id="simulation" class="level2 page-columns page-full">
+<h2 class="anchored" data-anchor-id="simulation">Simulation</h2>
+<section id="a-simple-example" class="level3 page-columns page-full">
+<h3 class="anchored" data-anchor-id="a-simple-example">A simple example</h3>
+<p>Before we write the simulation code, let’s illustrate the toppling process with a simple example. Consider a 3x3 grid where the center cell has 21 grains and all other cells are empty.</p>
+<p>We can apply the toppling rules step by step to see how the grains are distributed. The center cell topples multiple times, distributing grains to its neighbors, which may also topple if they exceed the threshold. This process continues until all cells have 3 or fewer grains. By following this example, we can understand how the toppling mechanism works and how it leads to a stable configuration.</p>
+<p>In the code, we model the grid as a 2D numpy array, where each element represents the number of grains in that cell. The toppling process is implemented as a loop that checks for cells with 4 or more grains, topples them 4 grains at a time, and updates the grid according to the distribution rules until it stabilizes.</p>
+<div>
+<div id="pyodide-2" class="exercise-cell">
+
+</div>
+<script type="pyodide-2-contents">
+eyJhdHRyIjp7ImNhcHRpb24iOiJBbGdvcml0aG0gMSIsImVkaXQiOnRydWUsImV2YWwiOnRydWV9LCJjb2RlIjoiIyBJbml0aWFsIGdyaWQgY29uZmlndXJhdGlvblxuc21hbGxfZ3JpZCA9IG5wLmFycmF5KFtbMCwgMCwgMF0sIFswLCAyMSwgMF0sIFswLCAwLCAwXV0pXG5wcmludChmXCJJbml0aWFsIGdyaWQ6XFxue3NtYWxsX2dyaWR9XCIpXG5cbiMgSW5pdGlhbGl6ZSBzdGVwIGNvdW50ZXJcbmkgPSAwXG5cbiMgTG9vcCB1bnRpbCBhbGwgY2VsbHMgaGF2ZSAzIG9yIGZld2VyIGdyYWluc1xud2hpbGUgbnAuYW55KHNtYWxsX2dyaWQgPj0gNCk6XG4gICAgIyBJbmNyZW1lbnQgc3RlcCBjb3VudGVyXG4gICAgaSArPSAxXG5cbiAgICAjIENoZWNrIHdoaWNoIGNlbGxzIG5lZWQgdG8gdG9wcGxlICgxIGlmIHRoZSBjZWxsIGhhcyA0IG9yIG1vcmUgZ3JhaW5zLCBvdGhlcndpc2UgMClcbiAgICB0b3BwbGVfZ3JpZCA9IG5wLndoZXJlKHNtYWxsX2dyaWQgPj0gNCwgMSwgMClcblxuICAgICMgVXBkYXRlIHRoZSBncmlkIGJhc2VkIG9uIHRoZSB0b3BwbGluZyBydWxlc1xuICAgICMgRWFjaCB0b3BwbGUgY2VsbCBsb3NlcyA0IGdyYWluc1xuICAgIHNtYWxsX2dyaWQgLT0gNCAqIHRvcHBsZV9ncmlkIFxuXG4gICAgIyBFYWNoIHRvcHBsZSBjZWxsIGRpc3RyaWJ1dGVzIDEgZ3JhaW4gdG8gaXRzIGZvdXIgbmVpZ2hib3JzXG4gICAgc21hbGxfZ3JpZFsxOiwgOl0gKz0gdG9wcGxlX2dyaWRbOi0xLCA6XSAgICAjIEl0cyBzb3V0aCBjZWxsXG4gICAgc21hbGxfZ3JpZFs6LTEsIDpdICs9IHRvcHBsZV9ncmlkWzE6LCA6XSAgICAjIEl0cyBub3J0aCBjZWxsXG4gICAgc21hbGxfZ3JpZFs6LCAxOl0gKz0gdG9wcGxlX2dyaWRbOiwgOi0xXSAgICAjIEl0cyBlYXN0IGNlbGxcbiAgICBzbWFsbF9ncmlkWzosIDotMV0gKz0gdG9wcGxlX2dyaWRbOiwgMTpdICAgICMgSXRzIHdlc3QgY2VsbFxuXG4gICAgcHJpbnQoZlwiXFxuU3RlcCB7aX06XFxue3NtYWxsX2dyaWR9XCIpIn0=
+</script>
+</div>
+<p>This 4-grain at a time toppling algorithm is straightforward, but can be slow for large grids and many grains. Since we are not interested in the dynamics but only in the final state, we can optimize the process by toppling multiple of 4 grains at a time.</p>
+<p>For example, if a cell has 21 grains, we can topple it 5 times in one step, the grid loses 4x5 grains and has 1 grain remaining, and distributes 5 grains to each neighbor. This optimization can significantly speed up the simulation.</p>
+<p>We use the <code>divmod()</code> function in the <code>numpy</code> library to calculate how many times each cell topples and the remaining grains after toppling in a single step. The <code>divmod()</code> function takes three arguments: (1) the 2D grid array, (2) the divisor (4 in our case), and (3) an <code>out</code> argument that specifies where to store the results of the quotient (number of topples) and remainder (grains left after toppling). This allows us to efficiently update the grid in each iteration until it stabilizes.<a href="#fn1" class="footnote-ref" id="fnref1" role="doc-noteref"><sup>1</sup></a></p>
+<div class="no-row-height column-margin column-container"><div id="fn1"><p><sup>1</sup>&nbsp;the <code>out</code> argument allows us to store the results directly into pre-allocated arrays rather than creating new ones. This prevents Python from repeatedly allocating and freeing memory, which drastically speeds up code that runs in large loops with intensive data processing.</p></div></div><div>
+<div id="pyodide-3" class="exercise-cell">
+
+</div>
+<script type="pyodide-3-contents">
+eyJhdHRyIjp7ImNhcHRpb24iOiJBbGdvcml0aG0gMiIsImVkaXQiOnRydWUsImV2YWwiOnRydWV9LCJjb2RlIjoiIyBJbml0aWFsIGdyaWQgY29uZmlndXJhdGlvblxuc21hbGxfZ3JpZCA9IG5wLmFycmF5KFtbMCwgMCwgMF0sIFswLCAyMSwgMF0sIFswLCAwLCAwXV0pXG5wcmludChmXCJJbml0aWFsIGdyaWQ6XFxue3NtYWxsX2dyaWR9XCIpXG5cbiMgQ3JlYXRlIGFuIGFycmF5IHRvIHN0b3JlIHRoZSBudW1iZXIgb2YgdG9wcGxlcyBmb3IgZWFjaCBjZWxsXG50b3BwbGVzX3Blcl9jZWxsID0gbnAuZW1wdHlfbGlrZShzbWFsbF9ncmlkKVxuXG4jIEluaXRpYWxpemUgc3RlcCBjb3VudGVyXG5pID0gMFxuXG4jIExvb3AgdW50aWwgYWxsIGNlbGxzIGhhdmUgMyBvciBmZXdlciBncmFpbnNcbndoaWxlIG5wLmFueShzbWFsbF9ncmlkID49IDQpOlxuICAgICMgSW5jcmVtZW50IHN0ZXAgY291bnRlclxuICAgIGkgKz0gMVxuXG4gICAgIyBVc2UgbnAuZGl2bW9kIHRvIGNhbGN1bGF0ZSB0aGUgbnVtYmVyIG9mIHRvcHBsZXMgYW5kIHRoZSByZW1haW5pbmcgZ3JhaW5zIGZvciBlYWNoIGNlbGxcbiAgICBucC5kaXZtb2Qoc21hbGxfZ3JpZCwgNCwgb3V0PSh0b3BwbGVzX3Blcl9jZWxsLCBzbWFsbF9ncmlkKSkgICMgc21hbGxfZ3JpZCBub3cgY29udGFpbnMgdGhlIHJlbWFpbmluZyBncmFpbnMgYWZ0ZXIgdG9wcGxpbmdcblxuICAgICMgRWFjaCB0b3BwbGUgY2VsbCBkaXN0cmlidXRlcyAxIGdyYWluIHBlciB0b3BwbGUgdG8gaXRzIG5laWdoYm9yc1xuICAgIHNtYWxsX2dyaWRbMTosIDpdICs9IHRvcHBsZXNfcGVyX2NlbGxbOi0xLCA6XSAgICAjIGl0cyBzb3V0aCBjZWxsXG4gICAgc21hbGxfZ3JpZFs6LTEsIDpdICs9IHRvcHBsZXNfcGVyX2NlbGxbMTosIDpdICAgICMgaXRzIG5vcnRoIGNlbGxcbiAgICBzbWFsbF9ncmlkWzosIDE6XSArPSB0b3BwbGVzX3Blcl9jZWxsWzosIDotMV0gICAgIyBpdHMgZWFzdCBjZWxsXG4gICAgc21hbGxfZ3JpZFs6LCA6LTFdICs9IHRvcHBsZXNfcGVyX2NlbGxbOiwgMTpdICAgICMgaXRzIHdlc3QgY2VsbFxuXG4gICAgcHJpbnQoZlwiXFxuU3RlcCB7aX06XFxue3NtYWxsX2dyaWR9XCIpIn0=
+</script>
+</div>
+<p>We see that comparing with the 4-grain at a time toppling, the optimized algorithm can reduce the number of iterations significantly, especially when there are cells with a large number of grains. This allows us to efficiently simulate larger grids and more complex configurations.</p>
+</section>
+<section id="full-implementation" class="level3">
+<h3 class="anchored" data-anchor-id="full-implementation">Full Implementation</h3>
+<p>We are now ready to implement the sandpile simulation. Our simulation uses a large grid with a large number of grains in the center. This configuration leads to a complex pattern after stabilization.</p>
+<p>We first create three functions:</p>
+<ol type="1">
+<li><code>stabilize_sandpile()</code>: This function takes the grid as input and apply the toppling rules until the sandpile is stable (no cell has more than 3 grains).</li>
+<li><code>add_grains_at_center()</code>: This function adds a specified number of grains to the center cell of the grid.</li>
+<li><code>simulate_sandpile()</code>: This function initializes the grid, adds grains to the center, and calls the stabilization function to get the final stable state of the sandpile.</li>
+</ol>
+<div>
+<div id="pyodide-4" class="exercise-cell">
+
+</div>
+<script type="pyodide-4-contents">
+eyJhdHRyIjp7ImNhcHRpb24iOiJUaHJlZSBGdW5jdGlvbiIsImVkaXQiOnRydWUsImV2YWwiOnRydWV9LCJjb2RlIjoiZGVmIHN0YWJpbGl6ZV9zYW5kcGlsZShncmlkOiBucC5uZGFycmF5KSAtPiBOb25lOlxuICAgIFwiXCJcIlRvcHBsZSB1bnN0YWJsZSBjZWxscyB1bnRpbCB0aGUgZ3JpZCByZWFjaGVzIGEgc3RhYmxlIHN0YXRlLlwiXCJcIlxuICAgIHRvcHBsZXNfcGVyX2NlbGwgPSBucC5lbXB0eV9saWtlKGdyaWQpXG5cbiAgICB3aGlsZSBUcnVlOlxuICAgICAgICAjIENhbGN1bGF0ZSBob3cgbWFueSB0aW1lcyBlYWNoIGNlbGwgdG9wcGxlcyBhbmQgdGhlIHJlbWFpbmluZyBncmFpbnMgYWZ0ZXIgdG9wcGxpbmdcbiAgICAgICAgbnAuZGl2bW9kKGdyaWQsIDQsIG91dD0odG9wcGxlc19wZXJfY2VsbCwgZ3JpZCkpXG5cbiAgICAgICAgIyBJZiBubyBjZWxsIHRvcHBsZXMsIHdlIGFyZSBkb25lXG4gICAgICAgIGlmIG5vdCBucC5hbnkodG9wcGxlc19wZXJfY2VsbCk6XG4gICAgICAgICAgICByZXR1cm5cblxuICAgICAgICAjIERpc3RyaWJ1dGUgdGhlIHRvcHBsZWQgZ3JhaW5zIHRvIHRoZSBmb3VyIG5laWdoYm9yc1xuICAgICAgICBncmlkWzE6LCA6XSArPSB0b3BwbGVzX3Blcl9jZWxsWzotMSwgOl0gICAgIyBmcm9tIG5vcnRoXG4gICAgICAgIGdyaWRbOi0xLCA6XSArPSB0b3BwbGVzX3Blcl9jZWxsWzE6LCA6XSAgICAjIGZyb20gc291dGhcbiAgICAgICAgZ3JpZFs6LCAxOl0gKz0gdG9wcGxlc19wZXJfY2VsbFs6LCA6LTFdICAgICMgZnJvbSB3ZXN0XG4gICAgICAgIGdyaWRbOiwgOi0xXSArPSB0b3BwbGVzX3Blcl9jZWxsWzosIDE6XSAgICAjIGZyb20gZWFzdFxuXG5kZWYgYWRkX2dyYWluc19hdF9jZW50ZXIoZ3JpZDogbnAubmRhcnJheSwgdG90YWxfZ3JhaW5zOiBpbnQpIC0+IE5vbmU6XG4gICAgXCJcIlwiRGVwb3NpdCBhbGwgZ3JhaW5zIGludG8gdGhlIGNlbnRlciBjZWxsLlwiXCJcIlxuICAgIGNlbnRlcl9pbmRleCA9IGdyaWQuc2hhcGVbMF0gLy8gMlxuICAgIGdyaWRbY2VudGVyX2luZGV4LCBjZW50ZXJfaW5kZXhdICs9IHRvdGFsX2dyYWluc1xuXG5kZWYgc2ltdWxhdGVfc2FuZHBpbGUoZ3JpZF9zaXplOiBpbnQsIHRvdGFsX2dyYWluczogaW50KSAtPiBucC5uZGFycmF5OlxuICAgIFwiXCJcIlNpbXVsYXRlIHRoZSBzYW5kcGlsZSBtb2RlbCBhbmQgcmV0dXJuIHRoZSBmaW5hbCBzdGFibGUgZ3JpZCBzdGF0ZS5cIlwiXCJcbiAgICBncmlkID0gbnAuemVyb3MoKGdyaWRfc2l6ZSwgZ3JpZF9zaXplKSwgZHR5cGU9bnAuaW50MzIpXG5cbiAgICBhZGRfZ3JhaW5zX2F0X2NlbnRlcihncmlkLCB0b3RhbF9ncmFpbnMpXG4gICAgc3RhYmlsaXplX3NhbmRwaWxlKGdyaWQpXG5cbiAgICByZXR1cm4gZ3JpZCJ9
+</script>
+</div>
+<p>We are now ready to run the simulation. This may take a few moments as our grid size and the number of grains can be quite large. We measure the time taken to complete the simulation to get an idea of its performance.</p>
+<div>
+<div id="pyodide-5" class="exercise-cell">
+
+</div>
+<script type="pyodide-5-contents">
+eyJhdHRyIjp7ImNhcHRpb24iOiJTaW11bGF0aW9uIiwiZWRpdCI6dHJ1ZSwiZXZhbCI6dHJ1ZX0sImNvZGUiOiIjIFNpbXVsYXRpb24gcGFyYW1ldGVyc1xuZ3JpZF9zaXplID0gNTAxICAgICAgICAgICAgIyBVc2UgYW4gb2RkIG51bWJlciB0byBrZWVwIGEgc2luZ2xlIGNlbnRlciBjZWxsXG50b3RhbF9ncmFpbnMgPSAzMDBfMDAwICAgICAjIFRvdGFsIGdyYWlucyBhZGRlZCB0byB0aGUgY2VudGVyIGNlbGxcblxuIyBSdW4gdGhlIHNpbXVsYXRpb24gYW5kIG1lYXN1cmUgdGhlIHRpbWUgdGFrZW5cbnByaW50KFwiUnVubmluZyB0aGUgc2FuZHBpbGUgc2ltdWxhdGlvbiwgYW5kIHRoaXMgbWF5IHRha2UgYSBmZXcgbW9tZW50cy4uLlwiKVxuXG5zdGFydF90aW1lID0gdGltZS50aW1lKClcbmZpbmFsX2dyaWQgPSBzaW11bGF0ZV9zYW5kcGlsZShncmlkX3NpemUsIHRvdGFsX2dyYWlucylcbmVuZF90aW1lID0gdGltZS50aW1lKClcblxucHJpbnQoZlwiU2ltdWxhdGlvbiBjb21wbGV0ZSBpbiB7ZW5kX3RpbWUgLSBzdGFydF90aW1lOi4yZn0gc2Vjb25kcy5cIikifQ==
+</script>
+</div>
+</section>
+</section>
+<section id="visualization" class="level2">
+<h2 class="anchored" data-anchor-id="visualization">Visualization</h2>
+<p>We visualize the final state of the sandpile using a heatmap, where the color intensity represents the number of grains in each cell. This allows us to see the complex patterns that emerge from the toppling process.</p>
+<p>We use the <code>plotly</code> library for the visualization. The <code>plotly</code> library provides interactive plotting capabilities, which allows us to explore the final configuration of the sandpile in more detail. For example, we can hover over cells to see the exact number of grains, or zoom in on specific areas of the grid to see finer details of the pattern.</p>
+<div>
+<div id="pyodide-6" class="exercise-cell">
+
+</div>
+<script type="pyodide-6-contents">
+eyJhdHRyIjp7ImNhcHRpb24iOiJWaXN1YWxpemF0aW9uIiwiZWRpdCI6dHJ1ZSwiZXZhbCI6dHJ1ZX0sImNvZGUiOiIjIERlZmluZSBhIGRpc2NyZXRlIGNvbG9yIHBhbGV0dGUgZm9yIHRoZSA0IGhlaWdodCBjbGFzc2VzICgwLCAxLCAyLCAzKVxuY2xhc3NfY29sb3JzID0gW1xuICAgIFwiI2YzZWFkYlwiLCAgIyAwOiB2ZXJ5IGxpZ2h0IHNhbmRcbiAgICBcIiNlM2NmYThcIiwgICMgMTogbGlnaHQgdGFuXG4gICAgXCIjYzlhMzZhXCIsICAjIDI6IGR1bmUgYnJvd25cbiAgICBcIiM4YzYyMzlcIiwgICMgMzogZGFyayBwYWNrZWQgc2FuZFxuXVxuXG4jIEJ1aWxkIGEgc3RlcHdpc2UgY29sb3JzY2FsZSBzbyB2YWx1ZXMgbWFwIHRvIGRpc2NyZXRlIGNsYXNzZXMgMCwgMSwgMiwgM1xuc3RlcF9jb2xvcnNjYWxlID0gW1xuICAgIFswLjAwLCBjbGFzc19jb2xvcnNbMF1dLCBbMC4yNDk5LCBjbGFzc19jb2xvcnNbMF1dLFxuICAgIFswLjI1LCBjbGFzc19jb2xvcnNbMV1dLCBbMC40OTk5LCBjbGFzc19jb2xvcnNbMV1dLFxuICAgIFswLjUwLCBjbGFzc19jb2xvcnNbMl1dLCBbMC43NDk5LCBjbGFzc19jb2xvcnNbMl1dLFxuICAgIFswLjc1LCBjbGFzc19jb2xvcnNbM11dLCBbMS4wMCwgY2xhc3NfY29sb3JzWzNdXSxcbl1cblxuIyBDcmVhdGUgdGhlIFBsb3RseSBmaWd1cmUgd2l0aCB0aGUgZGlzY3JldGUgY29sb3JzY2FsZSBhbmQgYXBwcm9wcmlhdGUgYXhpcyBsYWJlbHNcbmZpZyA9IHB4Lmltc2hvdyhcbiAgICBmaW5hbF9ncmlkLFxuICAgIGNvbG9yX2NvbnRpbnVvdXNfc2NhbGU9c3RlcF9jb2xvcnNjYWxlLFxuICAgIHptaW49LTAuNSxcbiAgICB6bWF4PTMuNSxcbiAgICBvcmlnaW49XCJsb3dlclwiLFxuICAgIGxhYmVscz17XCJjb2xvclwiOiBcIkhlaWdodFwiLCBcInhcIjogXCJYXCIsIFwieVwiOiBcIllcIn0sXG4gICAgdGl0bGU9XCJGaW5hbCBTdGF0ZSBvZiB0aGUgU2FuZHBpbGVcIixcbilcblxuIyBBZGp1c3QgbGF5b3V0IGZvciBiZXR0ZXIgYXBwZWFyYW5jZSBhbmQgdG8gYWNjb21tb2RhdGUgdGhlIGNvbG9yYmFyXG5maWcudXBkYXRlX2xheW91dChcbiAgICB0aXRsZV94PTAuNSxcbiAgICB3aWR0aD03NjAsXG4gICAgaGVpZ2h0PTc2MCxcbiAgICBtYXJnaW49ZGljdChsPTIwLCByPTIwLCB0PTYwLCBiPTIwKSxcbilcblxuIyBDb25maWd1cmUgdGhlIGNvbG9yYmFyIHRvIHNob3cgZGlzY3JldGUgdGlja3MgZm9yIGVhY2ggaGVpZ2h0IGNsYXNzXG5maWcudXBkYXRlX2NvbG9yYXhlcyhcbiAgICBjbWluPS0wLjUsXG4gICAgY21heD0zLjUsXG4gICAgY29sb3JiYXJfbGVuPTAuOSxcbiAgICBjb2xvcmJhcj1kaWN0KFxuICAgICAgICB0aWNrbW9kZT1cImFycmF5XCIsXG4gICAgICAgIHRpY2t2YWxzPVswLCAxLCAyLCAzXSwgICMgY2VudGVycyBvZiBiaW5zIFstMC41LDAuNV0sIFswLjUsMS41XSwgLi4uXG4gICAgICAgIHRpY2t0ZXh0PVtcIjBcIiwgXCIxXCIsIFwiMlwiLCBcIjNcIl0sXG4gICAgKSxcbilcblxuIyBSZW1vdmUgZ3JpZGxpbmVzIGZvciBhIGNsZWFuZXIgbG9va1xuZmlnLnVwZGF0ZV94YXhlcyhzaG93Z3JpZD1GYWxzZSlcbmZpZy51cGRhdGVfeWF4ZXMoc2hvd2dyaWQ9RmFsc2UpXG5cbmZpZy5zaG93KCkifQ==
+</script>
+</div>
+</section>
+<section id="exercise" class="level2">
+<h2 class="anchored" data-anchor-id="exercise">Exercise</h2>
+<ul>
+<li>Try different initial configurations, such as adding grains to multiple cells or starting with a random distribution of grains. Observe how the final patterns change with different initial conditions.</li>
+<li>Try hexagonal or triangular grids instead of square grids. Change the toppling rule accordingly. What kind of patterns emerge?</li>
+</ul>
+</section>
+<section id="references" class="level2">
+<h2 class="anchored" data-anchor-id="references">References</h2>
+<ol type="1">
+<li><a href="https://en.wikipedia.org/wiki/Abelian_sandpile_model">Sandpile Model - Wikipedia</a></li>
+<li><a href="https://git.afpy.org/mdk/fast-abelian-sandpile">Searching for a fast Abelian Sandpile implementation - Julien Palard</a>: A repository with many implementations of the sandpile model in Python and C, including optimizations and visualizations.</li>
+<li><a href="https://rosettacode.org/wiki/Abelian_sandpile_model">Abelian sandpile model - Rosetta Code</a>: Sandpile model implemented in many different programming languages.</li>
+</ol>
+
+
+<script type="pyodide-data">
+eyJvcHRpb25zIjp7ImVudiI6eyJQTE9UTFlfUkVOREVSRVIiOiJwbG90bHlfbWltZXR5cGUifSwiaW5kZXhVUkwiOiJodHRwczovL2Nkbi5qc2RlbGl2ci5uZXQvcHlvZGlkZS92MC4yOC4xL2Z1bGwvIn0sInBhY2thZ2VzIjp7InBrZ3MiOlsicHlvZGlkZV9odHRwIiwibWljcm9waXAiLCJpcHl0aG9uIiwibnVtcHkiLCJwbG90bHkiLCJuYmZvcm1hdCJdfX0=
+</script>
+<script type="ojs-module-contents">
+eyJjb250ZW50cyI6W3siY2VsbE5hbWUiOiJweW9kaWRlLTYiLCJpbmxpbmUiOmZhbHNlLCJtZXRob2ROYW1lIjoiaW50ZXJwcmV0Iiwic291cmNlIjoidmlld29mIF9weW9kaWRlX2VkaXRvcl82ID0ge1xuICBjb25zdCB7IFB5b2RpZGVFeGVyY2lzZUVkaXRvciwgYjY0RGVjb2RlIH0gPSB3aW5kb3cuX2V4ZXJjaXNlX29qc19ydW50aW1lO1xuXG4gIGNvbnN0IHNjcmlwdENvbnRlbnQgPSBkb2N1bWVudC5xdWVyeVNlbGVjdG9yKGBzY3JpcHRbdHlwZT1cXFwicHlvZGlkZS02LWNvbnRlbnRzXFxcIl1gKS50ZXh0Q29udGVudDtcbiAgY29uc3QgYmxvY2sgPSBKU09OLnBhcnNlKGI2NERlY29kZShzY3JpcHRDb250ZW50KSk7XG5cbiAgY29uc3Qgb3B0aW9ucyA9IE9iamVjdC5hc3NpZ24oeyBpZDogYHB5b2RpZGUtNi1jb250ZW50c2AgfSwgYmxvY2suYXR0cik7XG4gIGNvbnN0IGVkaXRvciA9IG5ldyBQeW9kaWRlRXhlcmNpc2VFZGl0b3IoXG4gICAgcHlvZGlkZU9qcy5weW9kaWRlUHJvbWlzZSxcbiAgICBibG9jay5jb2RlLFxuICAgIG9wdGlvbnNcbiAgKTtcblxuICByZXR1cm4gZWRpdG9yLmNvbnRhaW5lcjtcbn1cbl9weW9kaWRlX3ZhbHVlXzYgPSBweW9kaWRlT2pzLnByb2Nlc3MoX3B5b2RpZGVfZWRpdG9yXzYsIHt9KTtcbiJ9LHsiY2VsbE5hbWUiOiJweW9kaWRlLTUiLCJpbmxpbmUiOmZhbHNlLCJtZXRob2ROYW1lIjoiaW50ZXJwcmV0Iiwic291cmNlIjoidmlld29mIF9weW9kaWRlX2VkaXRvcl81ID0ge1xuICBjb25zdCB7IFB5b2RpZGVFeGVyY2lzZUVkaXRvciwgYjY0RGVjb2RlIH0gPSB3aW5kb3cuX2V4ZXJjaXNlX29qc19ydW50aW1lO1xuXG4gIGNvbnN0IHNjcmlwdENvbnRlbnQgPSBkb2N1bWVudC5xdWVyeVNlbGVjdG9yKGBzY3JpcHRbdHlwZT1cXFwicHlvZGlkZS01LWNvbnRlbnRzXFxcIl1gKS50ZXh0Q29udGVudDtcbiAgY29uc3QgYmxvY2sgPSBKU09OLnBhcnNlKGI2NERlY29kZShzY3JpcHRDb250ZW50KSk7XG5cbiAgY29uc3Qgb3B0aW9ucyA9IE9iamVjdC5hc3NpZ24oeyBpZDogYHB5b2RpZGUtNS1jb250ZW50c2AgfSwgYmxvY2suYXR0cik7XG4gIGNvbnN0IGVkaXRvciA9IG5ldyBQeW9kaWRlRXhlcmNpc2VFZGl0b3IoXG4gICAgcHlvZGlkZU9qcy5weW9kaWRlUHJvbWlzZSxcbiAgICBibG9jay5jb2RlLFxuICAgIG9wdGlvbnNcbiAgKTtcblxuICByZXR1cm4gZWRpdG9yLmNvbnRhaW5lcjtcbn1cbl9weW9kaWRlX3ZhbHVlXzUgPSBweW9kaWRlT2pzLnByb2Nlc3MoX3B5b2RpZGVfZWRpdG9yXzUsIHt9KTtcbiJ9LHsiY2VsbE5hbWUiOiJweW9kaWRlLTQiLCJpbmxpbmUiOmZhbHNlLCJtZXRob2ROYW1lIjoiaW50ZXJwcmV0Iiwic291cmNlIjoidmlld29mIF9weW9kaWRlX2VkaXRvcl80ID0ge1xuICBjb25zdCB7IFB5b2RpZGVFeGVyY2lzZUVkaXRvciwgYjY0RGVjb2RlIH0gPSB3aW5kb3cuX2V4ZXJjaXNlX29qc19ydW50aW1lO1xuXG4gIGNvbnN0IHNjcmlwdENvbnRlbnQgPSBkb2N1bWVudC5xdWVyeVNlbGVjdG9yKGBzY3JpcHRbdHlwZT1cXFwicHlvZGlkZS00LWNvbnRlbnRzXFxcIl1gKS50ZXh0Q29udGVudDtcbiAgY29uc3QgYmxvY2sgPSBKU09OLnBhcnNlKGI2NERlY29kZShzY3JpcHRDb250ZW50KSk7XG5cbiAgY29uc3Qgb3B0aW9ucyA9IE9iamVjdC5hc3NpZ24oeyBpZDogYHB5b2RpZGUtNC1jb250ZW50c2AgfSwgYmxvY2suYXR0cik7XG4gIGNvbnN0IGVkaXRvciA9IG5ldyBQeW9kaWRlRXhlcmNpc2VFZGl0b3IoXG4gICAgcHlvZGlkZU9qcy5weW9kaWRlUHJvbWlzZSxcbiAgICBibG9jay5jb2RlLFxuICAgIG9wdGlvbnNcbiAgKTtcblxuICByZXR1cm4gZWRpdG9yLmNvbnRhaW5lcjtcbn1cbl9weW9kaWRlX3ZhbHVlXzQgPSBweW9kaWRlT2pzLnByb2Nlc3MoX3B5b2RpZGVfZWRpdG9yXzQsIHt9KTtcbiJ9LHsiY2VsbE5hbWUiOiJweW9kaWRlLTMiLCJpbmxpbmUiOmZhbHNlLCJtZXRob2ROYW1lIjoiaW50ZXJwcmV0Iiwic291cmNlIjoidmlld29mIF9weW9kaWRlX2VkaXRvcl8zID0ge1xuICBjb25zdCB7IFB5b2RpZGVFeGVyY2lzZUVkaXRvciwgYjY0RGVjb2RlIH0gPSB3aW5kb3cuX2V4ZXJjaXNlX29qc19ydW50aW1lO1xuXG4gIGNvbnN0IHNjcmlwdENvbnRlbnQgPSBkb2N1bWVudC5xdWVyeVNlbGVjdG9yKGBzY3JpcHRbdHlwZT1cXFwicHlvZGlkZS0zLWNvbnRlbnRzXFxcIl1gKS50ZXh0Q29udGVudDtcbiAgY29uc3QgYmxvY2sgPSBKU09OLnBhcnNlKGI2NERlY29kZShzY3JpcHRDb250ZW50KSk7XG5cbiAgY29uc3Qgb3B0aW9ucyA9IE9iamVjdC5hc3NpZ24oeyBpZDogYHB5b2RpZGUtMy1jb250ZW50c2AgfSwgYmxvY2suYXR0cik7XG4gIGNvbnN0IGVkaXRvciA9IG5ldyBQeW9kaWRlRXhlcmNpc2VFZGl0b3IoXG4gICAgcHlvZGlkZU9qcy5weW9kaWRlUHJvbWlzZSxcbiAgICBibG9jay5jb2RlLFxuICAgIG9wdGlvbnNcbiAgKTtcblxuICByZXR1cm4gZWRpdG9yLmNvbnRhaW5lcjtcbn1cbl9weW9kaWRlX3ZhbHVlXzMgPSBweW9kaWRlT2pzLnByb2Nlc3MoX3B5b2RpZGVfZWRpdG9yXzMsIHt9KTtcbiJ9LHsiY2VsbE5hbWUiOiJweW9kaWRlLTIiLCJpbmxpbmUiOmZhbHNlLCJtZXRob2ROYW1lIjoiaW50ZXJwcmV0Iiwic291cmNlIjoidmlld29mIF9weW9kaWRlX2VkaXRvcl8yID0ge1xuICBjb25zdCB7IFB5b2RpZGVFeGVyY2lzZUVkaXRvciwgYjY0RGVjb2RlIH0gPSB3aW5kb3cuX2V4ZXJjaXNlX29qc19ydW50aW1lO1xuXG4gIGNvbnN0IHNjcmlwdENvbnRlbnQgPSBkb2N1bWVudC5xdWVyeVNlbGVjdG9yKGBzY3JpcHRbdHlwZT1cXFwicHlvZGlkZS0yLWNvbnRlbnRzXFxcIl1gKS50ZXh0Q29udGVudDtcbiAgY29uc3QgYmxvY2sgPSBKU09OLnBhcnNlKGI2NERlY29kZShzY3JpcHRDb250ZW50KSk7XG5cbiAgY29uc3Qgb3B0aW9ucyA9IE9iamVjdC5hc3NpZ24oeyBpZDogYHB5b2RpZGUtMi1jb250ZW50c2AgfSwgYmxvY2suYXR0cik7XG4gIGNvbnN0IGVkaXRvciA9IG5ldyBQeW9kaWRlRXhlcmNpc2VFZGl0b3IoXG4gICAgcHlvZGlkZU9qcy5weW9kaWRlUHJvbWlzZSxcbiAgICBibG9jay5jb2RlLFxuICAgIG9wdGlvbnNcbiAgKTtcblxuICByZXR1cm4gZWRpdG9yLmNvbnRhaW5lcjtcbn1cbl9weW9kaWRlX3ZhbHVlXzIgPSBweW9kaWRlT2pzLnByb2Nlc3MoX3B5b2RpZGVfZWRpdG9yXzIsIHt9KTtcbiJ9LHsiY2VsbE5hbWUiOiJweW9kaWRlLTEiLCJpbmxpbmUiOmZhbHNlLCJtZXRob2ROYW1lIjoiaW50ZXJwcmV0Iiwic291cmNlIjoidmlld29mIF9weW9kaWRlX2VkaXRvcl8xID0ge1xuICBjb25zdCB7IFB5b2RpZGVFeGVyY2lzZUVkaXRvciwgYjY0RGVjb2RlIH0gPSB3aW5kb3cuX2V4ZXJjaXNlX29qc19ydW50aW1lO1xuXG4gIGNvbnN0IHNjcmlwdENvbnRlbnQgPSBkb2N1bWVudC5xdWVyeVNlbGVjdG9yKGBzY3JpcHRbdHlwZT1cXFwicHlvZGlkZS0xLWNvbnRlbnRzXFxcIl1gKS50ZXh0Q29udGVudDtcbiAgY29uc3QgYmxvY2sgPSBKU09OLnBhcnNlKGI2NERlY29kZShzY3JpcHRDb250ZW50KSk7XG5cbiAgY29uc3Qgb3B0aW9ucyA9IE9iamVjdC5hc3NpZ24oeyBpZDogYHB5b2RpZGUtMS1jb250ZW50c2AgfSwgYmxvY2suYXR0cik7XG4gIGNvbnN0IGVkaXRvciA9IG5ldyBQeW9kaWRlRXhlcmNpc2VFZGl0b3IoXG4gICAgcHlvZGlkZU9qcy5weW9kaWRlUHJvbWlzZSxcbiAgICBibG9jay5jb2RlLFxuICAgIG9wdGlvbnNcbiAgKTtcblxuICByZXR1cm4gZWRpdG9yLmNvbnRhaW5lcjtcbn1cbl9weW9kaWRlX3ZhbHVlXzEgPSBweW9kaWRlT2pzLnByb2Nlc3MoX3B5b2RpZGVfZWRpdG9yXzEsIHt9KTtcbiJ9LHsiY2VsbE5hbWUiOiJweW9kaWRlLXByZWx1ZGUiLCJpbmxpbmUiOmZhbHNlLCJtZXRob2ROYW1lIjoiaW50ZXJwcmV0UXVpZXQiLCJzb3VyY2UiOiJweW9kaWRlT2pzID0ge1xuICBjb25zdCB7XG4gICAgUHlvZGlkZUV2YWx1YXRvcixcbiAgICBQeW9kaWRlRW52aXJvbm1lbnRNYW5hZ2VyLFxuICAgIHNldHVwUHl0aG9uLFxuICAgIHN0YXJ0UHlvZGlkZVdvcmtlcixcbiAgICBiNjREZWNvZGUsXG4gICAgY29sbGFwc2VQYXRoLFxuICB9ID0gd2luZG93Ll9leGVyY2lzZV9vanNfcnVudGltZTtcblxuICBjb25zdCBzdGF0dXNDb250YWluZXIgPSBkb2N1bWVudC5nZXRFbGVtZW50QnlJZChcImV4ZXJjaXNlLWxvYWRpbmctc3RhdHVzXCIpO1xuICBjb25zdCBpbmRpY2F0b3JDb250YWluZXIgPSBkb2N1bWVudC5nZXRFbGVtZW50QnlJZChcImV4ZXJjaXNlLWxvYWRpbmctaW5kaWNhdG9yXCIpO1xuICBpbmRpY2F0b3JDb250YWluZXIuY2xhc3NMaXN0LnJlbW92ZShcImQtbm9uZVwiKTtcblxuICBsZXQgc3RhdHVzVGV4dCA9IGRvY3VtZW50LmNyZWF0ZUVsZW1lbnQoXCJkaXZcIilcbiAgc3RhdHVzVGV4dC5jbGFzc0xpc3QgPSBcImV4ZXJjaXNlLWxvYWRpbmctZGV0YWlsc1wiO1xuICBzdGF0dXNUZXh0ID0gc3RhdHVzQ29udGFpbmVyLmFwcGVuZENoaWxkKHN0YXR1c1RleHQpO1xuICBzdGF0dXNUZXh0LnRleHRDb250ZW50ID0gYEluaXRpYWxpc2VgO1xuXG4gIC8vIEhvaXN0IGluZGljYXRvciBvdXQgZnJvbSBmaW5hbCBzbGlkZSB3aGVuIHJ1bm5pbmcgdW5kZXIgcmV2ZWFsXG4gIGNvbnN0IHJldmVhbFN0YXR1cyA9IGRvY3VtZW50LnF1ZXJ5U2VsZWN0b3IoXCIucmV2ZWFsIC5leGVyY2lzZS1sb2FkaW5nLWluZGljYXRvclwiKTtcbiAgaWYgKHJldmVhbFN0YXR1cykge1xuICAgIHJldmVhbFN0YXR1cy5yZW1vdmUoKTtcbiAgICBkb2N1bWVudC5xdWVyeVNlbGVjdG9yKFwiLnJldmVhbCA+IC5zbGlkZXNcIikuYXBwZW5kQ2hpbGQocmV2ZWFsU3RhdHVzKTtcbiAgfVxuXG4gIC8vIE1ha2UgYW55IHJldmVhbCBzbGlkZXMgd2l0aCBsaXZlIGNlbGxzIHNjcm9sbGFibGVcbiAgZG9jdW1lbnQucXVlcnlTZWxlY3RvckFsbChcIi5yZXZlYWwgLmV4ZXJjaXNlLWNlbGxcIikuZm9yRWFjaCgoZWwpID0+IHtcbiAgICBlbC5jbG9zZXN0KCdzZWN0aW9uLnNsaWRlJykuY2xhc3NMaXN0LmFkZChcInNjcm9sbGFibGVcIik7XG4gIH0pXG5cbiAgLy8gUHlvZGlkZSBzdXBwbGVtZW50YWwgZGF0YSBhbmQgb3B0aW9uc1xuICBjb25zdCBkYXRhQ29udGVudCA9IGRvY3VtZW50LnF1ZXJ5U2VsZWN0b3IoYHNjcmlwdFt0eXBlPVxcXCJweW9kaWRlLWRhdGFcXFwiXWApLnRleHRDb250ZW50O1xuICBjb25zdCBkYXRhID0gSlNPTi5wYXJzZShiNjREZWNvZGUoZGF0YUNvbnRlbnQpKTtcblxuICAvLyBHcmFiIGxpc3Qgb2YgcmVzb3VyY2VzIHRvIGJlIGRvd25sb2FkZWRcbiAgY29uc3QgZmlsZXNDb250ZW50ID0gZG9jdW1lbnQucXVlcnlTZWxlY3Rvcihgc2NyaXB0W3R5cGU9XFxcInZmcy1maWxlXFxcIl1gKS50ZXh0Q29udGVudDtcbiAgY29uc3QgZmlsZXMgPSBKU09OLnBhcnNlKGI2NERlY29kZShmaWxlc0NvbnRlbnQpKTtcblxuICBsZXQgcHlvZGlkZVByb21pc2UgPSAoYXN5bmMgKCkgPT4ge1xuICAgIHN0YXR1c1RleHQudGV4dENvbnRlbnQgPSBgRG93bmxvYWRpbmcgUHlvZGlkZWA7XG4gICAgY29uc3QgcHlvZGlkZSA9IGF3YWl0IHN0YXJ0UHlvZGlkZVdvcmtlcihkYXRhLm9wdGlvbnMpO1xuXG4gICAgc3RhdHVzVGV4dC50ZXh0Q29udGVudCA9IGBEb3dubG9hZGluZyBwYWNrYWdlOiBtaWNyb3BpcGA7XG4gICAgYXdhaXQgcHlvZGlkZS5sb2FkUGFja2FnZShcIm1pY3JvcGlwXCIpO1xuICAgIGNvbnN0IG1pY3JvcGlwID0gYXdhaXQgcHlvZGlkZS5weWltcG9ydChcIm1pY3JvcGlwXCIpO1xuICAgIGF3YWl0IGRhdGEucGFja2FnZXMucGtncy5tYXAoKHBrZykgPT4gKCkgPT4ge1xuICAgICAgc3RhdHVzVGV4dC50ZXh0Q29udGVudCA9IGBEb3dubG9hZGluZyBwYWNrYWdlOiAke3BrZ31gO1xuICAgICAgcmV0dXJuIG1pY3JvcGlwLmluc3RhbGwocGtnKTtcbiAgICB9KS5yZWR1Y2UoKGN1ciwgbmV4dCkgPT4gY3VyLnRoZW4obmV4dCksIFByb21pc2UucmVzb2x2ZSgpKTtcbiAgICBhd2FpdCBtaWNyb3BpcC5kZXN0cm95KCk7XG5cbiAgICAvLyBEb3dubG9hZCBhbmQgaW5zdGFsbCByZXNvdXJjZXNcbiAgICBhd2FpdCBmaWxlcy5tYXAoKGZpbGUpID0+IGFzeW5jICgpID0+IHtcbiAgICAgIGNvbnN0IG5hbWUgPSBmaWxlLnN1YnN0cmluZyhmaWxlLmxhc3RJbmRleE9mKCcvJykgKyAxKTtcbiAgICAgIHN0YXR1c1RleHQudGV4dENvbnRlbnQgPSBgRG93bmxvYWRpbmcgcmVzb3VyY2U6ICR7bmFtZX1gO1xuICAgICAgY29uc3QgcmVzcG9uc2UgPSBhd2FpdCBmZXRjaChmaWxlKTtcbiAgICAgIGlmICghcmVzcG9uc2Uub2spIHtcbiAgICAgICAgdGhyb3cgbmV3IEVycm9yKGBDYW4ndCBkb3dubG9hZCBcXGAke2ZpbGV9XFxgLiBFcnJvciAke3Jlc3BvbnNlLnN0YXR1c306IFwiJHtyZXNwb25zZS5zdGF0dXNUZXh0fVwiLmApO1xuICAgICAgfVxuICAgICAgY29uc3QgZGF0YSA9IGF3YWl0IHJlc3BvbnNlLmFycmF5QnVmZmVyKCk7XG5cbiAgICAgIC8vIFN0b3JlIFVSTHMgaW4gdGhlIGN3ZCB3aXRob3V0IGFueSBzdWJkaXJlY3Rvcnkgc3RydWN0dXJlXG4gICAgICBpZiAoZmlsZS5pbmNsdWRlcyhcIjovL1wiKSkge1xuICAgICAgICBmaWxlID0gbmFtZTtcbiAgICAgIH1cblxuICAgICAgLy8gQ29sbGFwc2UgaGlnaGVyIGRpcmVjdG9yeSBzdHJ1Y3R1cmVcbiAgICAgIGZpbGUgPSBjb2xsYXBzZVBhdGgoZmlsZSk7XG5cbiAgICAgIC8vIENyZWF0ZSBkaXJlY3RvcnkgdHJlZSwgaWdub3JpbmcgXCJkaXJlY3RvcnkgZXhpc3RzXCIgVkZTIGVycm9yc1xuICAgICAgY29uc3QgcGFydHMgPSBmaWxlLnNwbGl0KCcvJykuc2xpY2UoMCwgLTEpO1xuICAgICAgbGV0IHBhdGggPSAnJztcbiAgICAgIHdoaWxlIChwYXJ0cy5sZW5ndGggPiAwKSB7XG4gICAgICAgIHBhdGggKz0gcGFydHMuc2hpZnQoKSArICcvJztcbiAgICAgICAgdHJ5IHtcbiAgICAgICAgICBhd2FpdCBweW9kaWRlLkZTLm1rZGlyKHBhdGgpO1xuICAgICAgICB9IGNhdGNoIChlKSB7XG4gICAgICAgICAgaWYgKGUubmFtZSAhPT0gXCJFcnJub0Vycm9yXCIpIHRocm93IGU7XG4gICAgICAgICAgaWYgKGUuZXJybm8gIT09IDIwKSB7XG4gICAgICAgICAgICBjb25zdCBlcnJvclRleHRQdHIgPSBhd2FpdCBweW9kaWRlLl9tb2R1bGUuX3N0cmVycm9yKGUuZXJybm8pO1xuICAgICAgICAgICAgY29uc3QgZXJyb3JUZXh0ID0gYXdhaXQgcHlvZGlkZS5fbW9kdWxlLlVURjhUb1N0cmluZyhlcnJvclRleHRQdHIpO1xuICAgICAgICAgICAgdGhyb3cgbmV3IEVycm9yKGBGaWxlc3lzdGVtIEVycm9yICR7ZS5lcnJub30gXCIke2Vycm9yVGV4dH1cIi5gKTtcbiAgICAgICAgICB9XG4gICAgICAgIH1cbiAgICAgIH1cblxuICAgICAgLy8gV3JpdGUgdGhpcyBmaWxlIHRvIHRoZSBWRlNcbiAgICAgIHRyeSB7XG4gICAgICAgIHJldHVybiBhd2FpdCBweW9kaWRlLkZTLndyaXRlRmlsZShmaWxlLCBuZXcgVWludDhBcnJheShkYXRhKSk7XG4gICAgICB9IGNhdGNoIChlKSB7XG4gICAgICAgIGlmIChlLm5hbWUgIT09IFwiRXJybm9FcnJvclwiKSB0aHJvdyBlO1xuICAgICAgICBjb25zdCBlcnJvclRleHRQdHIgPSBhd2FpdCBweW9kaWRlLl9tb2R1bGUuX3N0cmVycm9yKGUuZXJybm8pO1xuICAgICAgICBjb25zdCBlcnJvclRleHQgPSBhd2FpdCBweW9kaWRlLl9tb2R1bGUuVVRGOFRvU3RyaW5nKGVycm9yVGV4dFB0cik7XG4gICAgICAgIHRocm93IG5ldyBFcnJvcihgRmlsZXN5c3RlbSBFcnJvciAke2UuZXJybm99IFwiJHtlcnJvclRleHR9XCIuYCk7XG4gICAgICB9XG4gICAgfSkucmVkdWNlKChjdXIsIG5leHQpID0+IGN1ci50aGVuKG5leHQpLCBQcm9taXNlLnJlc29sdmUoKSk7XG5cbiAgICBzdGF0dXNUZXh0LnRleHRDb250ZW50ID0gYFB5b2RpZGUgZW52aXJvbm1lbnQgc2V0dXBgO1xuICAgIGF3YWl0IHNldHVwUHl0aG9uKHB5b2RpZGUpO1xuXG4gICAgc3RhdHVzVGV4dC5yZW1vdmUoKTtcbiAgICBpZiAoc3RhdHVzQ29udGFpbmVyLmNoaWxkcmVuLmxlbmd0aCA9PSAwKSB7XG4gICAgICBzdGF0dXNDb250YWluZXIucGFyZW50Tm9kZS5yZW1vdmUoKTtcbiAgICB9XG4gICAgcmV0dXJuIHB5b2RpZGU7XG4gIH0pKCkuY2F0Y2goKGVycikgPT4ge1xuICAgIHN0YXR1c1RleHQuc3R5bGUuY29sb3IgPSBcInZhcigtLWV4ZXJjaXNlLWVkaXRvci1obC1lciwgI0FEMDAwMClcIjtcbiAgICBzdGF0dXNUZXh0LnRleHRDb250ZW50ID0gZXJyLm1lc3NhZ2U7XG4gICAgLy9pbmRpY2F0b3JDb250YWluZXIucXVlcnlTZWxlY3RvcihcIi5zcGlubmVyLWdyb3dcIikuY2xhc3NMaXN0LmFkZChcImQtbm9uZVwiKTtcbiAgICB0aHJvdyBlcnI7XG4gIH0pO1xuXG4gIC8vIEtlZXAgdHJhY2sgb2YgaW5pdGlhbCBPSlMgYmxvY2sgcmVuZGVyXG4gIGNvbnN0IHJlbmRlcmVkT2pzID0ge307XG5cbiAgY29uc3QgcHJvY2VzcyA9IGFzeW5jIChjb250ZXh0LCBpbnB1dHMpID0+IHtcbiAgICBjb25zdCBweW9kaWRlID0gYXdhaXQgcHlvZGlkZVByb21pc2U7XG4gICAgY29uc3QgZXZhbHVhdG9yID0gbmV3IFB5b2RpZGVFdmFsdWF0b3IocHlvZGlkZSwgY29udGV4dCk7XG4gICAgYXdhaXQgZXZhbHVhdG9yLnByb2Nlc3MoaW5wdXRzKTtcbiAgICByZXR1cm4gZXZhbHVhdG9yLmNvbnRhaW5lcjtcbiAgfVxuXG4gIHJldHVybiB7XG4gICAgcHlvZGlkZVByb21pc2UsXG4gICAgcmVuZGVyZWRPanMsXG4gICAgcHJvY2VzcyxcbiAgfTtcbn1cbiJ9XX0=
+</script>
+<div id="exercise-loading-indicator" class="exercise-loading-indicator d-none d-flex align-items-center gap-2">
+<div id="exercise-loading-status" class="d-flex gap-2">
+
+</div>
+<div class="spinner-grow spinner-grow-sm">
+
+</div>
+</div>
+<script type="vfs-file">
+W10=
+</script>
+</section>
+
+
+</main> <!-- /main -->
+<script type="ojs-module-contents">
+eyJjb250ZW50cyI6W119
+</script>
+<script type="module">
+if (window.location.protocol === "file:") { alert("The OJS runtime does not work with file:// URLs. Please use a web server to view this document."); }
+window._ojs.paths.runtimeToDoc = "../..";
+window._ojs.paths.runtimeToRoot = "../..";
+window._ojs.paths.docToRoot = "";
+window._ojs.selfContained = false;
+window._ojs.runtime.interpretFromScriptTags();
+</script>
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+<p>Prepared by Jay (assisted by LLMs) | Back to <a href="https://rmdal.github.io/">MDAL Computing</a></p>
+</div>   
+    <div class="nav-footer-center">
+      &nbsp;
+    </div>
+    <div class="nav-footer-right">
+<p>Built with <a href="https://quarto.org/">Quarto</a> and <a href="https://r-wasm.github.io/quarto-live/">Quarto-live</a></p>
+</div>
+  </div>
+</footer>
+
+
+
+
+</body></html>

@@ -1,0 +1,93 @@
+[
+  {
+    "objectID": "part2.html",
+    "href": "part2.html",
+    "title": "The Sandpile Model - Part 2",
+    "section": "",
+    "text": "In this workshop, we continue our exploration of the sandpile model. Unlike last time, where we started from a preconfigured initial state and focused on the final configuration, here we capture and visualize the system’s full evolution over time.\nLet’s recap the rules of the sandpile model (with one adjustment: grains are dropped one by one):\n\nWe have an empty grid (for example, 51x51) where each cell can hold grains of sand.\nWe drop grains onto the grid, typically at the center cell.\nIf any cell has 4 or more grains, it topples, distributing grains to its neighbors (up, down, left, and right).\nThis can trigger a chain reaction of topplings until all cells are stable (below the threshold of 4 grains).\n\nWe run this process for a specified number of drops. To visualize the dynamics, we capture the grid state at regular drop intervals, together with the full toppling dynamics of each sampled drop (the avalanche).\nThis visualization highlights self-organized criticality (SOC): the system naturally evolves toward a critical state in which events of many sizes can occur, from tiny relaxations to system-spanning avalanches."
+  },
+  {
+    "objectID": "part2.html#intro",
+    "href": "part2.html#intro",
+    "title": "The Sandpile Model - Part 2",
+    "section": "",
+    "text": "In this workshop, we continue our exploration of the sandpile model. Unlike last time, where we started from a preconfigured initial state and focused on the final configuration, here we capture and visualize the system’s full evolution over time.\nLet’s recap the rules of the sandpile model (with one adjustment: grains are dropped one by one):\n\nWe have an empty grid (for example, 51x51) where each cell can hold grains of sand.\nWe drop grains onto the grid, typically at the center cell.\nIf any cell has 4 or more grains, it topples, distributing grains to its neighbors (up, down, left, and right).\nThis can trigger a chain reaction of topplings until all cells are stable (below the threshold of 4 grains).\n\nWe run this process for a specified number of drops. To visualize the dynamics, we capture the grid state at regular drop intervals, together with the full toppling dynamics of each sampled drop (the avalanche).\nThis visualization highlights self-organized criticality (SOC): the system naturally evolves toward a critical state in which events of many sizes can occur, from tiny relaxations to system-spanning avalanches."
+  },
+  {
+    "objectID": "part2.html#simulation",
+    "href": "part2.html#simulation",
+    "title": "The Sandpile Model - Part 2",
+    "section": "Simulation",
+    "text": "Simulation\nLast time, we illustrated two sandpile simulation algorithms:\n\na 4-grain-at-a-time toppling method, where in each wave all unstable cells topple by 4 grains and distribute grains to neighbors\na more efficient multi-4-grain-at-a-time toppling method, where in each wave all unstable cells topple by multiples of 4 grains at once\n\nWe chose the efficient approach because we were interested in the final state only.\nThis time, because we want to capture the full dynamics, we use the 4-grain-at-a-time toppling algorithm. It lets us track each wave and its effect on the grid during every sampled avalanche.\nAlong the way, we also record avalanche statistics (topples, waves, avalanches, and boundary loss). These statistics will support later analysis of SOC behavior.\nWe begin with topple_wave(), which applies one wave across the whole grid: all currently unstable cells topple once. The function returns the number of topples in that wave and the number of grains lost at the boundaries.\n\n\n\n\n\n\nWe then define run_sandpile_experiment(), which runs the full simulation by dropping grains one by one and capturing grid states and avalanche statistics along the way.\nWe track the following primary statistics: - boundary grain loss (grains that fall off the grid) - avalanche sizes in topples (one value per avalanche) - avalanche sizes in waves (one value per avalanche)\nFrom the two avalanche size arrays, we derive: - number of topples: sum of avalanche sizes in topples - number of waves: sum of avalanche sizes in waves - number of avalanches: length of the avalanche arrays - largest avalanche topples count: max of avalanche sizes in topples - largest avalanche waves count: max of avalanche sizes in waves\nIn addition to numpy, we use xarray for labeled multidimensional data handling. xarray.DataArray lets us store grid snapshots and related metadata in a structured form, which makes downstream analysis and visualization easier.\n\n\n\n\n\n\nNow we are ready to run the simulation and collect the results. We set the grid size, total number of grains to drop, and snapshot interval, then call run_sandpile_experiment() to generate the data used for analysis and visualization."
+  },
+  {
+    "objectID": "part2.html#visualization",
+    "href": "part2.html#visualization",
+    "title": "The Sandpile Model - Part 2",
+    "section": "Visualization",
+    "text": "Visualization\n\nEvolution of the sandpile\nWe visualize the sandpile’s evolution by plotting the grid state dynamics at each sampled drop. Each plot shows the distribution of grains across the grid, with color intensity representing grain count. By arranging these plots in a sequence, we can see how the sandpile grows and evolves over time, including the formation of avalanches and the emergence of complex patterns.\n\n\n\n\n\n\nAmong the sampled drops, we observe many small avalanches and a few large ones. In particular, drops 3000 and 9000 trigger large avalanches that spread across much of the grid, while most other sampled drops trigger small avalanches near the center. This is a hallmark of self-organized criticality (SOC): the system naturally evolves to a critical state in which events of many sizes can occur.\n\n\nPower law distribution of avalanche sizes\nThe size distribution of avalanches in the sandpile model follows a power-law form. A power law means the probability of observing an avalanche of size \\(s\\) scales as \\(P(s) \\sim s^{-\\tau}\\) for some exponent \\(\\tau\\). Unlike a normal distribution, where values cluster around a typical scale (i.e., its mean), a power law has a long tail: small events are common, while very large events are rare but important.\nA standard way to visualize this is a log-log plot of avalanche-size probability. If the distribution is close to a power law over a range of sizes, the points in that range appear approximately linear, and the slope is related to the exponent \\(\\tau\\).\nIn the plot below, size is defined as the number of topples per avalanche. The x-axis is avalanche size, and the y-axis is the estimated probability of observing that size; both axes are shown on logarithmic scales.\n\n\n\n\n\n\nThe scatter points follow an approximately straight, downward trend over part of the range, consistent with power-law-like behavior: small avalanches are frequent, while large avalanches are rare but still present.\nIf we plot avalanche sizes in waves instead of topples, we should see a similar heavy-tailed pattern, with a potentially different exponent \\(\\tau\\)."
+  },
+  {
+    "objectID": "part2.html#exercise",
+    "href": "part2.html#exercise",
+    "title": "The Sandpile Model - Part 2",
+    "section": "Exercise",
+    "text": "Exercise\n\nExperiment on other grid sizes and total number of grains. What interesting dynamics do you observe? How does the grid size affect the distribution of avalanche sizes? (Note that setting a larger grid size and a larger number of grains will require more computational resources and time to run the simulation.)\nPlot the distribution of avalanche sizes in waves and compare it to the distribution of avalanche sizes measured in topples. Does it also follow a power law distribution? If so, what are the estimated exponents \\(\\tau\\) for each distribution?"
+  },
+  {
+    "objectID": "part2.html#references",
+    "href": "part2.html#references",
+    "title": "The Sandpile Model - Part 2",
+    "section": "References",
+    "text": "References\n\nSandpile Model - Wikipedia\nSelf-Organized Criticality - Wikipedia\nPower Law - Wikipedia\nSandpile Avalanche Simulation - Veritasium and its associated video about power law and self-organized criticality: You’ve (Likely) Been Playing The Game of Life Wrong"
+  },
+  {
+    "objectID": "index.html",
+    "href": "index.html",
+    "title": "The Sandpile Model",
+    "section": "",
+    "text": "Part 1(site or colab notebook)\nPart 2(site or colab notebook)"
+  },
+  {
+    "objectID": "part1.html",
+    "href": "part1.html",
+    "title": "The Sandpile Model - Part 1",
+    "section": "",
+    "text": "In this short workshop, we implement a simple sandpile model on a 2D grid. The sandpile model is a cellular automaton that simulates the behavior of granular materials. Each cell in the grid can hold a certain number of “grains of sand”. When the number of grains in a cell exceeds a certain threshold, the cell “topples”, distributing its grains to neighboring cells. This process can lead to complex patterns and self-organized criticality.\nLet’s define the sandpile model more concretely: - We have a 2D grid of size N x N, where each cell can hold an integer number of grains. - We start with an initial configuration of grains in the grid. - We repeatedly apply the following rules until no cell has more than 3 grains: - If a cell has 4 or more grains, it topples: - The cell loses 4 grains. - Each of the four orthogonal neighbors (up, down, left, right) receives 1 grain. - If a neighbor is outside the grid, the grain is lost (it falls off the edge). - The process continues until all cells have 3 or fewer grains.\nWe implement this model in Python and visualize the final state of the sandpile after it stabilizes. Let’s get started!"
+  },
+  {
+    "objectID": "part1.html#intro",
+    "href": "part1.html#intro",
+    "title": "The Sandpile Model - Part 1",
+    "section": "",
+    "text": "In this short workshop, we implement a simple sandpile model on a 2D grid. The sandpile model is a cellular automaton that simulates the behavior of granular materials. Each cell in the grid can hold a certain number of “grains of sand”. When the number of grains in a cell exceeds a certain threshold, the cell “topples”, distributing its grains to neighboring cells. This process can lead to complex patterns and self-organized criticality.\nLet’s define the sandpile model more concretely: - We have a 2D grid of size N x N, where each cell can hold an integer number of grains. - We start with an initial configuration of grains in the grid. - We repeatedly apply the following rules until no cell has more than 3 grains: - If a cell has 4 or more grains, it topples: - The cell loses 4 grains. - Each of the four orthogonal neighbors (up, down, left, right) receives 1 grain. - If a neighbor is outside the grid, the grain is lost (it falls off the edge). - The process continues until all cells have 3 or fewer grains.\nWe implement this model in Python and visualize the final state of the sandpile after it stabilizes. Let’s get started!"
+  },
+  {
+    "objectID": "part1.html#simulation",
+    "href": "part1.html#simulation",
+    "title": "The Sandpile Model - Part 1",
+    "section": "Simulation",
+    "text": "Simulation\n\nA simple example\nBefore we write the simulation code, let’s illustrate the toppling process with a simple example. Consider a 3x3 grid where the center cell has 21 grains and all other cells are empty.\nWe can apply the toppling rules step by step to see how the grains are distributed. The center cell topples multiple times, distributing grains to its neighbors, which may also topple if they exceed the threshold. This process continues until all cells have 3 or fewer grains. By following this example, we can understand how the toppling mechanism works and how it leads to a stable configuration.\nIn the code, we model the grid as a 2D numpy array, where each element represents the number of grains in that cell. The toppling process is implemented as a loop that checks for cells with 4 or more grains, topples them 4 grains at a time, and updates the grid according to the distribution rules until it stabilizes.\n\n\n\n\n\n\nThis 4-grain at a time toppling algorithm is straightforward, but can be slow for large grids and many grains. Since we are not interested in the dynamics but only in the final state, we can optimize the process by toppling multiple of 4 grains at a time.\nFor example, if a cell has 21 grains, we can topple it 5 times in one step, the grid loses 4x5 grains and has 1 grain remaining, and distributes 5 grains to each neighbor. This optimization can significantly speed up the simulation.\nWe use the divmod() function in the numpy library to calculate how many times each cell topples and the remaining grains after toppling in a single step. The divmod() function takes three arguments: (1) the 2D grid array, (2) the divisor (4 in our case), and (3) an out argument that specifies where to store the results of the quotient (number of topples) and remainder (grains left after toppling). This allows us to efficiently update the grid in each iteration until it stabilizes.1\n1 the out argument allows us to store the results directly into pre-allocated arrays rather than creating new ones. This prevents Python from repeatedly allocating and freeing memory, which drastically speeds up code that runs in large loops with intensive data processing.\n\n\n\n\n\nWe see that comparing with the 4-grain at a time toppling, the optimized algorithm can reduce the number of iterations significantly, especially when there are cells with a large number of grains. This allows us to efficiently simulate larger grids and more complex configurations.\n\n\nFull Implementation\nWe are now ready to implement the sandpile simulation. Our simulation uses a large grid with a large number of grains in the center. This configuration leads to a complex pattern after stabilization.\nWe first create three functions:\n\nstabilize_sandpile(): This function takes the grid as input and apply the toppling rules until the sandpile is stable (no cell has more than 3 grains).\nadd_grains_at_center(): This function adds a specified number of grains to the center cell of the grid.\nsimulate_sandpile(): This function initializes the grid, adds grains to the center, and calls the stabilization function to get the final stable state of the sandpile.\n\n\n\n\n\n\n\nWe are now ready to run the simulation. This may take a few moments as our grid size and the number of grains can be quite large. We measure the time taken to complete the simulation to get an idea of its performance."
+  },
+  {
+    "objectID": "part1.html#visualization",
+    "href": "part1.html#visualization",
+    "title": "The Sandpile Model - Part 1",
+    "section": "Visualization",
+    "text": "Visualization\nWe visualize the final state of the sandpile using a heatmap, where the color intensity represents the number of grains in each cell. This allows us to see the complex patterns that emerge from the toppling process.\nWe use the plotly library for the visualization. The plotly library provides interactive plotting capabilities, which allows us to explore the final configuration of the sandpile in more detail. For example, we can hover over cells to see the exact number of grains, or zoom in on specific areas of the grid to see finer details of the pattern."
+  },
+  {
+    "objectID": "part1.html#exercise",
+    "href": "part1.html#exercise",
+    "title": "The Sandpile Model - Part 1",
+    "section": "Exercise",
+    "text": "Exercise\n\nTry different initial configurations, such as adding grains to multiple cells or starting with a random distribution of grains. Observe how the final patterns change with different initial conditions.\nTry hexagonal or triangular grids instead of square grids. Change the toppling rule accordingly. What kind of patterns emerge?"
+  },
+  {
+    "objectID": "part1.html#references",
+    "href": "part1.html#references",
+    "title": "The Sandpile Model - Part 1",
+    "section": "References",
+    "text": "References\n\nSandpile Model - Wikipedia\nSearching for a fast Abelian Sandpile implementation - Julien Palard: A repository with many implementations of the sandpile model in Python and C, including optimizations and visualizations.\nAbelian sandpile model - Rosetta Code: Sandpile model implemented in many different programming languages."
+  }
+]

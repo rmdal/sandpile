@@ -1,0 +1,418 @@
+---
+title: The Sandpile Model - Part 2
+format: live-html
+toc: true
+# number-sections: true
+reference-location: margin
+fontsize: 95%
+pyodide:
+  packages:
+    - numpy
+    - xarray
+    - plotly
+    - nbformat
+---
+
+## Intro
+
+In this workshop, we continue our exploration of the sandpile model. Unlike last time, where we started from a preconfigured initial state and focused on the final configuration, here we capture and visualize the system's full evolution over time.
+
+Let's recap the rules of the sandpile model (with one adjustment: grains are dropped one by one):
+
+1. We have an empty grid (for example, 51x51) where each cell can hold grains of sand.
+2. We drop grains onto the grid, typically at the center cell.
+3. If any cell has 4 or more grains, it topples, distributing grains to its neighbors (up, down, left, and right).
+4. This can trigger a chain reaction of topplings until all cells are stable (below the threshold of 4 grains).
+
+We run this process for a specified number of drops. To visualize the dynamics, we capture the grid state at regular drop intervals, together with the full toppling dynamics of each sampled drop (the avalanche).
+
+This visualization highlights self-organized criticality (SOC): the system naturally evolves toward a critical state in which events of many sizes can occur, from tiny relaxations to system-spanning avalanches.
+
+
+```{pyodide}
+#| caption: Imports
+from pprint import pprint
+import numpy as np
+import xarray as xr
+import plotly.express as px
+```
+
+## Simulation
+
+Last time, we illustrated two sandpile simulation algorithms:
+
+* a 4-grain-at-a-time toppling method, where in each wave all unstable cells topple by 4 grains and distribute grains to neighbors
+* a more efficient multi-4-grain-at-a-time toppling method, where in each wave all unstable cells topple by multiples of 4 grains at once
+
+We chose the efficient approach because we were interested in the final state only.
+
+This time, because we want to capture the full dynamics, we use the 4-grain-at-a-time toppling algorithm. It lets us track each wave and its effect on the grid during every sampled avalanche.
+
+Along the way, we also record avalanche statistics (topples, waves, avalanches, and boundary loss). These statistics will support later analysis of SOC behavior.
+
+We begin with `topple_wave()`, which applies one wave across the whole grid: all currently unstable cells topple once. The function returns the number of topples in that wave and the number of grains lost at the boundaries.
+
+```{pyodide}
+#| caption: Toppling Algorithm
+def topple_wave(grid: np.ndarray) -> tuple[int, int]:
+    """Apply one parallel toppling wave and return (topples_in_wave, grains_lost)."""
+
+    # Classic rule: topple when a pile has at least 4 grains.
+    unstable_mask = grid >= 4
+
+    # Count how many topples will occur in this wave.
+    topples = int(unstable_mask.sum())
+
+    # If no topples, return immediately to avoid unnecessary array operations.
+    if topples == 0:
+        return 0, 0
+
+    # Convert boolean mask to integer array for arithmetic operations.
+    unstable = unstable_mask.astype(np.int32)
+
+    # One grain exits for each off-grid neighbor direction during a topple.
+    lost = int(
+        unstable[0, :].sum()
+        + unstable[-1, :].sum()
+        + unstable[:, 0].sum()
+        + unstable[:, -1].sum()
+    )
+
+    # Each topple reduces the pile by 4 grains.
+    grid -= 4 * unstable
+
+    # Each topple distributes 1 grain to each of the 4 neighbors (if they exist).
+    grid[1:, :] += unstable[:-1, :]    # each south neighbor gets 1 grain
+    grid[:-1, :] += unstable[1:, :]    # each north neighbor gets 1 grain
+    grid[:, 1:] += unstable[:, :-1]    # each east neighbor gets 1 grain
+    grid[:, :-1] += unstable[:, 1:]    # each west neighbor gets 1 grain
+
+    return topples, lost
+```
+
+We then define `run_sandpile_experiment()`, which runs the full simulation by dropping grains one by one and capturing grid states and avalanche statistics along the way.
+
+We track the following primary statistics:
+- boundary grain loss (grains that fall off the grid)
+- avalanche sizes in topples (one value per avalanche)
+- avalanche sizes in waves (one value per avalanche)
+
+From the two avalanche size arrays, we derive:
+- number of topples: sum of avalanche sizes in topples
+- number of waves: sum of avalanche sizes in waves
+- number of avalanches: length of the avalanche arrays
+- largest avalanche topples count: max of avalanche sizes in topples
+- largest avalanche waves count: max of avalanche sizes in waves
+
+In addition to `numpy`, we use `xarray` for labeled multidimensional data handling. `xarray.DataArray` lets us store grid snapshots and related metadata in a structured form, which makes downstream analysis and visualization easier.
+
+```{pyodide}
+#| caption: Full Simulation
+def run_sandpile_experiment(
+    grid_size: int,
+    total_grains: int,
+    snapshot_interval: int = 50,
+) -> tuple[xr.DataArray, dict, np.ndarray, np.ndarray, np.ndarray]:
+    """Run the sandpile experiment and return (frames_da, stats, final_grid, avalanche_topples, avalanche_waves)."""
+
+    # Initialize the grid
+    grid = np.zeros((grid_size, grid_size), dtype=np.int32)
+    center = grid_size // 2
+
+    # Data structures to capture frames and metadata
+    snapshots: list[np.ndarray] = [grid.copy()]
+    frame_drop_index: list[int] = [0]
+    frame_labels: list[str] = ["initial"]
+    frame_is_stable: list[bool] = [True]
+    frame_wave_index: list[int] = [0]
+
+    # Boundary loss and avalanche sizes are tracked directly;
+    # Other global avalanche stats are derived later.
+    boundary_loss = 0
+    avalanche_topples: list[int] = []  # Avalanche size in topples for each avalanche.
+    avalanche_waves: list[int] = []  # Avalanche size in waves for each avalanche.
+
+    # Helper function to capture frames with metadata
+    def append_frame(drop: int, label: str, is_stable: bool, wave: int) -> None:
+        snapshots.append(grid.copy())
+        frame_drop_index.append(drop)
+        frame_labels.append(label)
+        frame_is_stable.append(is_stable)
+        frame_wave_index.append(wave)
+
+    # Main simulation loop: drop grains one by one and relax the system.
+    for drop in range(1, total_grains + 1):
+
+        # Drop a grain on the center cell.
+        grid[center, center] += 1
+
+        # Determine if we should capture the full avalanche dynamics for this drop.
+        sampled = (drop % snapshot_interval == 0)
+
+        # For sampled drops, capture pre-relax state.
+        if sampled:
+            append_frame(drop, f"drop_{drop}_pre_relax", False, 0)
+
+        # Local statistics for this avalanche
+        avalanche_topples_count = 0
+        avalanche_wave_count = 0
+
+        # Relax the system by applying toppling waves until stable.
+        while True:
+            topples, lost = topple_wave(grid)
+            if topples == 0:
+                break
+
+            # Update local avalanche statistics for this wave.
+            avalanche_topples_count += topples
+            avalanche_wave_count += 1
+
+            # Update boundary-loss accounting after each wave.
+            boundary_loss += lost
+
+            # For sampled drops, capture the state after each wave of the avalanche.
+            if sampled:
+                append_frame(drop, f"drop_{drop}_post_wave_{avalanche_wave_count}", False, avalanche_wave_count)
+
+        # After the avalanche has settled, record only drops that triggered activity.
+        if avalanche_topples_count > 0:
+            avalanche_topples.append(avalanche_topples_count)
+            avalanche_waves.append(avalanche_wave_count)
+
+        # For sampled drops, capture the settled state after relaxation.
+        if sampled:
+            append_frame(drop, f"drop_{drop}_settled", True, avalanche_wave_count)
+
+    # After all drops, capture the final stable configuration.
+    append_frame(total_grains, "final_stable", True, 0)
+
+    # Convert captured frames and metadata into an xarray DataArray for analysis and visualization.
+    frames = np.stack(snapshots, axis=0)
+
+    # Metadata about the experiment parameters and capture mode.
+    metadata = {
+        "grid_size": grid_size,
+        "total_grains": total_grains,
+        "snapshot_interval": snapshot_interval,
+        "toppling_rule": "classic_BTW_ge_4",
+        "capture_mode": "full_dynamics_for_sampled_drops",
+    }
+
+    # Create an xarray DataArray to hold the frames and associated metadata.
+    frames_da = xr.DataArray(
+        frames,
+        dims=("frame", "x", "y"),
+        coords={
+            "frame": np.arange(frames.shape[0], dtype=np.int32),
+            "x": np.arange(grid_size, dtype=np.int32),
+            "y": np.arange(grid_size, dtype=np.int32),
+            "drop": ("frame", np.array(frame_drop_index, dtype=np.int32)),
+            "label": ("frame", np.array(frame_labels, dtype=object)),
+            "is_stable": ("frame", np.array(frame_is_stable, dtype=bool)),
+            "wave": ("frame", np.array(frame_wave_index, dtype=np.int32)),
+        },
+        name="height",
+        attrs=metadata,
+    )
+
+    # Convert avalanche lists to arrays for easier downstream analysis.
+    avalanche_topples_arr = np.array(avalanche_topples, dtype=np.int32)
+    avalanche_waves_arr = np.array(avalanche_waves, dtype=np.int32)
+
+    # Compute final mass in the grid for mass conservation check.
+    final_mass = int(grid.sum())
+
+    # Derive aggregate statistics from avalanche arrays.
+    total_avalanches = int(avalanche_topples_arr.size)
+    total_topples = int(avalanche_topples_arr.sum())
+    total_waves = int(avalanche_waves_arr.sum())
+    largest_avalanche_topples = int(avalanche_topples_arr.max()) if total_avalanches > 0 else 0
+    largest_avalanche_waves = int(avalanche_waves_arr.max()) if total_avalanches > 0 else 0
+
+    # Compile final statistics about the experiment.
+    stats = {
+        "final_mass_in_grid": final_mass,
+        "boundary_loss": boundary_loss,
+        "mass_conservation_check": total_grains - final_mass - boundary_loss,
+        "total_topples": total_topples,
+        "total_waves": total_waves,
+        "total_avalanches": total_avalanches,
+        "largest_avalanche_topples": largest_avalanche_topples,
+        "largest_avalanche_waves": largest_avalanche_waves,
+    }
+
+    return frames_da, stats, grid.copy(), avalanche_topples_arr, avalanche_waves_arr
+```
+Now we are ready to run the simulation and collect the results. We set the grid size, total number of grains to drop, and snapshot interval, then call `run_sandpile_experiment()` to generate the data used for analysis and visualization.
+
+```{pyodide}
+#| caption: Run Simulation
+# Simulation parameters
+grid_size = 51              # Use an odd number to keep a single center cell
+total_grains = 10_000       # Number of grains dropped one by one
+snapshot_interval = 1000    # Capture full avalanche dynamics every N drops
+
+# Run the experiment and capture the results.
+frames_da, stats, final_grid, avalanche_topples, avalanche_waves = run_sandpile_experiment(
+    grid_size=grid_size,
+    total_grains=total_grains,
+    snapshot_interval=snapshot_interval,
+)
+
+# Print final statistics about the experiment.
+pprint(stats)
+print("Recorded avalanche-topple entries:", avalanche_topples.size)
+print("Recorded avalanche-wave entries:", avalanche_waves.size)
+```
+
+## Visualization
+
+### Evolution of the sandpile
+
+We visualize the sandpile's evolution by plotting the grid state dynamics at each sampled drop. Each plot shows the distribution of grains across the grid, with color intensity representing grain count. By arranging these plots in a sequence, we can see how the sandpile grows and evolves over time, including the formation of avalanches and the emergence of complex patterns.
+
+```{pyodide}
+#| caption: Visualization
+from IPython.display import HTML, display
+
+# For visualization, we will clip the height values to 4 to represent "4 or more" grains as a single class.
+display_frames = np.clip(frames_da.values, 0, 4)
+
+# Define a discrete color scale for the grain classes.
+class_colors = [
+    "#f3eadb",  # 0: very light sand
+    "#e3cfa8",  # 1: light tan
+    "#c9a36a",  # 2: dune brown
+    "#8c6239",  # 3: dark packed sand
+    "#d62728",  # 4+: unstable (red)
+]
+
+# Create a discrete color scale for Plotly based on the defined class colors.
+n_classes = len(class_colors)
+discrete_scale = []
+for i, color in enumerate(class_colors):
+    left = i / n_classes
+    right = (i + 1) / n_classes
+    discrete_scale.append([left, color])
+    discrete_scale.append([right, color])
+
+# Create an animated heatmap using Plotly Express with the discrete color scale.
+fig = px.imshow(
+    display_frames,
+    animation_frame=0,
+    origin="lower",
+    color_continuous_scale=discrete_scale,
+    zmin=-0.5,
+    zmax=4.5,
+    aspect="equal",
+    labels={"color": "Height"},
+    title="Sandpile Dynamics Snapshots (frame, x, y)",
+)
+
+# Customize axes, layout, and colorbar for better visualization.
+fig.update_xaxes(showticklabels=False, title="x")
+fig.update_yaxes(showticklabels=False, title="y")
+fig.update_layout(
+    width=760,
+    height=760,
+    margin=dict(l=20, r=20, t=60, b=20),
+    title=dict(x=0.5, xanchor="center")
+)
+fig.update_coloraxes(
+    # colorbar_title="height",
+    colorbar_tickvals=[0, 1, 2, 3, 4],
+    colorbar_ticktext=["0", "1", "2", "3", "4+"],
+)
+
+# Replace slider labels with semantic frame labels if available.
+if fig.layout.sliders and len(fig.layout.sliders) > 0:
+    for i, step in enumerate(fig.layout.sliders[0]["steps"]):
+        lbl = str(frames_da.coords["label"].values[i])
+        drop_idx = int(frames_da.coords["drop"].values[i])
+        stable = bool(frames_da.coords["is_stable"].values[i])
+        status = "stable" if stable else "unstable"
+        step["label"] = f"{lbl} | drop={drop_idx} | {status}"
+
+# Update slider layout to show current frame label and hide tick labels.
+fig.update_layout(
+    sliders=[{
+        "currentvalue": {
+            "visible": True,
+            "prefix": "Current Frame: ",
+            "font": {"color": "black"}
+        },
+        "font": {"color": "rgba(0,0,0,0)"}, # Hide tick labels by making them transparent
+        "tickcolor": "black"
+    }]
+)
+
+display(HTML(fig.to_html(full_html=False, include_plotlyjs=True)))
+
+# Print some information about the frames for verification.
+print("First frame label:", frames_da.label.values[0])
+print("Last frame label:", frames_da.label.values[-1])
+print("xarray shape (frame, x, y):", frames_da.shape)
+```
+
+Among the sampled drops, we observe many small avalanches and a few large ones. In particular, drops 3000 and 9000 trigger large avalanches that spread across much of the grid, while most other sampled drops trigger small avalanches near the center. This is a hallmark of self-organized criticality (SOC): the system naturally evolves to a critical state in which events of many sizes can occur.
+
+### Power law distribution of avalanche sizes
+
+The size distribution of avalanches in the sandpile model follows a power-law form. A power law means the probability of observing an avalanche of size $s$ scales as $P(s) \sim s^{-\tau}$ for some exponent $\tau$. Unlike a normal distribution, where values cluster around a typical scale (i.e., its mean), a power law has a long tail: small events are common, while very large events are rare but important.
+
+A standard way to visualize this is a log-log plot of avalanche-size probability. If the distribution is close to a power law over a range of sizes, the points in that range appear approximately linear, and the slope is related to the exponent $\tau$.
+
+In the plot below, size is defined as the number of topples per avalanche. The x-axis is avalanche size, and the y-axis is the estimated probability of observing that size; both axes are shown on logarithmic scales.
+```{pyodide}
+#| caption: Power Law Plot
+# Draw the avalanche-size distribution (power-law style).
+if avalanche_topples.size == 0:
+    print("No avalanches were recorded. Increase total_grains and run again.")
+else:
+    sizes, counts = np.unique(avalanche_topples, return_counts=True)
+    probabilities = counts / counts.sum()
+
+    powerlaw_fig = px.scatter(
+        x=sizes,
+        y=probabilities,
+        log_x=True,
+        log_y=True,
+        labels={
+            "x": "Avalanche size s (topples per avalanche)",
+            "y": "P(s)",
+        },
+        title="Avalanche Size Distribution (log-log)",
+    )
+    powerlaw_fig.update_traces(mode="markers")
+    powerlaw_fig.update_layout(
+        width=760,
+        height=520,
+        margin=dict(l=60, r=20, t=60, b=60),
+        title=dict(x=0.5, xanchor="center"),
+    )
+    powerlaw_fig.show()
+
+    print("Avalanches:", avalanche_topples.size)
+    print("Unique avalanche sizes:", sizes.size)
+```
+
+The scatter points follow an approximately straight, downward trend over part of the range, consistent with power-law-like behavior: small avalanches are frequent, while large avalanches are rare but still present.
+
+If we plot avalanche sizes in waves instead of topples, we should see a similar heavy-tailed pattern, with a potentially different exponent $\tau$.
+
+## Exercise
+
+* Experiment on other grid sizes and total number of grains. What interesting dynamics do you observe? How does the grid size affect the distribution of avalanche sizes? (Note that setting a larger grid size and a larger number of grains will require more computational resources and time to run the simulation.)
+
+* Plot the distribution of avalanche sizes in waves and compare it to the distribution of avalanche sizes measured in topples. Does it also follow a power law distribution? If so, what are the estimated exponents $\tau$ for each distribution?
+
+## References
+
+1. [Sandpile Model - Wikipedia](https://en.wikipedia.org/wiki/Abelian_sandpile_model)
+2. [Self-Organized Criticality - Wikipedia](https://en.wikipedia.org/wiki/Self-organized_criticality)
+3. [Power Law - Wikipedia](https://en.wikipedia.org/wiki/Power_law)
+4. [Sandpile Avalanche Simulation - Veritasium](https://www.veritasium.com/simulation3) and its associated video about power law and self-organized criticality: [You've (Likely) Been Playing The Game of Life Wrong](https://www.youtube.com/watch?v=HBluLfX2F_k)
+
+
+
+

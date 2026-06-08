@@ -1,0 +1,254 @@
+---
+title: The Sandpile Model - Part 1
+format: live-html
+toc: true
+# number-sections: true
+reference-location: margin
+fontsize: 95%
+pyodide:
+  packages:
+    - numpy
+    - plotly
+    - nbformat
+---
+
+## Intro
+
+In this short workshop, we implement a simple sandpile model on a 2D grid. The sandpile model is a cellular automaton that simulates the behavior of granular materials. Each cell in the grid can hold a certain number of "grains of sand". When the number of grains in a cell exceeds a certain threshold, the cell "topples", distributing its grains to neighboring cells. This process can lead to complex patterns and self-organized criticality.
+
+Let's define the sandpile model more concretely:
+- We have a 2D grid of size `N x N`, where each cell can hold an integer number of grains.
+- We start with an initial configuration of grains in the grid.
+- We repeatedly apply the following rules until no cell has more than 3 grains:
+- If a cell has 4 or more grains, it topples:
+   - The cell loses 4 grains.
+   - Each of the four orthogonal neighbors (up, down, left, right) receives 1 grain.
+   - If a neighbor is outside the grid, the grain is lost (it falls off the edge).
+- The process continues until all cells have 3 or fewer grains.
+
+We implement this model in Python and visualize *the final state* of the sandpile after it stabilizes. Let's get started!
+
+
+```{pyodide}
+#| caption: Imports
+import time
+import numpy as np
+import plotly.express as px
+```
+
+## Simulation
+
+### A simple example
+
+Before we write the simulation code, let's illustrate the toppling process with a simple example. Consider a 3x3 grid where the center cell has 21 grains and all other cells are empty.
+
+We can apply the toppling rules step by step to see how the grains are distributed. The center cell topples multiple times, distributing grains to its neighbors, which may also topple if they exceed the threshold. This process continues until all cells have 3 or fewer grains. By following this example, we can understand how the toppling mechanism works and how it leads to a stable configuration.
+
+In the code, we model the grid as a 2D numpy array, where each element represents the number of grains in that cell. The toppling process is implemented as a loop that checks for cells with 4 or more grains, topples them 4 grains at a time, and updates the grid according to the distribution rules until it stabilizes.
+
+```{pyodide}
+#| caption: Algorithm 1
+# Initial grid configuration
+small_grid = np.array([[0, 0, 0], [0, 21, 0], [0, 0, 0]])
+print(f"Initial grid:\n{small_grid}")
+
+# Initialize step counter
+i = 0
+
+# Loop until all cells have 3 or fewer grains
+while np.any(small_grid >= 4):
+    # Increment step counter
+    i += 1
+
+    # Check which cells need to topple (1 if the cell has 4 or more grains, otherwise 0)
+    topple_grid = np.where(small_grid >= 4, 1, 0)
+
+    # Update the grid based on the toppling rules
+    # Each topple cell loses 4 grains
+    small_grid -= 4 * topple_grid 
+
+    # Each topple cell distributes 1 grain to its four neighbors
+    small_grid[1:, :] += topple_grid[:-1, :]    # Its south cell
+    small_grid[:-1, :] += topple_grid[1:, :]    # Its north cell
+    small_grid[:, 1:] += topple_grid[:, :-1]    # Its east cell
+    small_grid[:, :-1] += topple_grid[:, 1:]    # Its west cell
+
+    print(f"\nStep {i}:\n{small_grid}")
+```
+
+This 4-grain at a time toppling algorithm is straightforward, but can be slow for large grids and many grains. Since we are not interested in the dynamics but only in the final state, we can optimize the process by toppling multiple of 4 grains at a time.
+
+For example, if a cell has 21 grains, we can topple it 5 times in one step, the grid loses 4x5 grains and has 1 grain remaining, and distributes 5 grains to each neighbor. This optimization can significantly speed up the simulation.
+
+We use the `divmod()` function in the `numpy` library to calculate how many times each cell topples and the remaining grains after toppling in a single step. The `divmod()` function takes three arguments: (1) the 2D grid array, (2) the divisor (4 in our case), and (3) an `out` argument that specifies where to store the results of the quotient (number of topples) and remainder (grains left after toppling). This allows us to efficiently update the grid in each iteration until it stabilizes.[^out]
+
+[^out]: the `out` argument allows us to store the results directly into pre-allocated arrays rather than creating new ones. This prevents Python from repeatedly allocating and freeing memory, which drastically speeds up code that runs in large loops with intensive data processing.
+
+```{pyodide}
+#| caption: Algorithm 2
+# Initial grid configuration
+small_grid = np.array([[0, 0, 0], [0, 21, 0], [0, 0, 0]])
+print(f"Initial grid:\n{small_grid}")
+
+# Create an array to store the number of topples for each cell
+topples_per_cell = np.empty_like(small_grid)
+
+# Initialize step counter
+i = 0
+
+# Loop until all cells have 3 or fewer grains
+while np.any(small_grid >= 4):
+    # Increment step counter
+    i += 1
+
+    # Use np.divmod to calculate the number of topples and the remaining grains for each cell
+    np.divmod(small_grid, 4, out=(topples_per_cell, small_grid))  # small_grid now contains the remaining grains after toppling
+
+    # Each topple cell distributes 1 grain per topple to its neighbors
+    small_grid[1:, :] += topples_per_cell[:-1, :]    # its south cell
+    small_grid[:-1, :] += topples_per_cell[1:, :]    # its north cell
+    small_grid[:, 1:] += topples_per_cell[:, :-1]    # its east cell
+    small_grid[:, :-1] += topples_per_cell[:, 1:]    # its west cell
+
+    print(f"\nStep {i}:\n{small_grid}")
+```
+We see that comparing with the 4-grain at a time toppling, the optimized algorithm can reduce the number of iterations significantly, especially when there are cells with a large number of grains. This allows us to efficiently simulate larger grids and more complex configurations.
+
+### Full Implementation
+
+We are now ready to implement the sandpile simulation. Our simulation uses a large grid with a large number of grains in the center. This configuration leads to a complex pattern after stabilization.
+
+We first create three functions:
+
+1. `stabilize_sandpile()`: This function takes the grid as input and apply the toppling rules until the sandpile is stable (no cell has more than 3 grains).
+2. `add_grains_at_center()`: This function adds a specified number of grains to the center cell of the grid.
+3. `simulate_sandpile()`: This function initializes the grid, adds grains to the center, and calls the stabilization function to get the final stable state of the sandpile.
+
+```{pyodide}
+#| caption: Three Function
+def stabilize_sandpile(grid: np.ndarray) -> None:
+    """Topple unstable cells until the grid reaches a stable state."""
+    topples_per_cell = np.empty_like(grid)
+
+    while True:
+        # Calculate how many times each cell topples and the remaining grains after toppling
+        np.divmod(grid, 4, out=(topples_per_cell, grid))
+
+        # If no cell topples, we are done
+        if not np.any(topples_per_cell):
+            return
+
+        # Distribute the toppled grains to the four neighbors
+        grid[1:, :] += topples_per_cell[:-1, :]    # from north
+        grid[:-1, :] += topples_per_cell[1:, :]    # from south
+        grid[:, 1:] += topples_per_cell[:, :-1]    # from west
+        grid[:, :-1] += topples_per_cell[:, 1:]    # from east
+
+def add_grains_at_center(grid: np.ndarray, total_grains: int) -> None:
+    """Deposit all grains into the center cell."""
+    center_index = grid.shape[0] // 2
+    grid[center_index, center_index] += total_grains
+
+def simulate_sandpile(grid_size: int, total_grains: int) -> np.ndarray:
+    """Simulate the sandpile model and return the final stable grid state."""
+    grid = np.zeros((grid_size, grid_size), dtype=np.int32)
+
+    add_grains_at_center(grid, total_grains)
+    stabilize_sandpile(grid)
+
+    return grid
+```
+
+We are now ready to run the simulation. This may take a few moments as our grid size and the number of grains can be quite large. We measure the time taken to complete the simulation to get an idea of its performance.
+
+```{pyodide}
+#| caption: Simulation
+# Simulation parameters
+grid_size = 501            # Use an odd number to keep a single center cell
+total_grains = 300_000     # Total grains added to the center cell
+
+# Run the simulation and measure the time taken
+print("Running the sandpile simulation, and this may take a few moments...")
+
+start_time = time.time()
+final_grid = simulate_sandpile(grid_size, total_grains)
+end_time = time.time()
+
+print(f"Simulation complete in {end_time - start_time:.2f} seconds.")
+```
+
+## Visualization
+
+We visualize the final state of the sandpile using a heatmap, where the color intensity represents the number of grains in each cell. This allows us to see the complex patterns that emerge from the toppling process.
+
+We use the `plotly` library for the visualization. The `plotly` library provides interactive plotting capabilities, which allows us to explore the final configuration of the sandpile in more detail. For example, we can hover over cells to see the exact number of grains, or zoom in on specific areas of the grid to see finer details of the pattern.
+
+```{pyodide}
+#| caption: Visualization
+# Define a discrete color palette for the 4 height classes (0, 1, 2, 3)
+class_colors = [
+    "#f3eadb",  # 0: very light sand
+    "#e3cfa8",  # 1: light tan
+    "#c9a36a",  # 2: dune brown
+    "#8c6239",  # 3: dark packed sand
+]
+
+# Build a stepwise colorscale so values map to discrete classes 0, 1, 2, 3
+step_colorscale = [
+    [0.00, class_colors[0]], [0.2499, class_colors[0]],
+    [0.25, class_colors[1]], [0.4999, class_colors[1]],
+    [0.50, class_colors[2]], [0.7499, class_colors[2]],
+    [0.75, class_colors[3]], [1.00, class_colors[3]],
+]
+
+# Create the Plotly figure with the discrete colorscale and appropriate axis labels
+fig = px.imshow(
+    final_grid,
+    color_continuous_scale=step_colorscale,
+    zmin=-0.5,
+    zmax=3.5,
+    origin="lower",
+    labels={"color": "Height", "x": "X", "y": "Y"},
+    title="Final State of the Sandpile",
+)
+
+# Adjust layout for better appearance and to accommodate the colorbar
+fig.update_layout(
+    title_x=0.5,
+    width=760,
+    height=760,
+    margin=dict(l=20, r=20, t=60, b=20),
+)
+
+# Configure the colorbar to show discrete ticks for each height class
+fig.update_coloraxes(
+    cmin=-0.5,
+    cmax=3.5,
+    colorbar_len=0.9,
+    colorbar=dict(
+        tickmode="array",
+        tickvals=[0, 1, 2, 3],  # centers of bins [-0.5,0.5], [0.5,1.5], ...
+        ticktext=["0", "1", "2", "3"],
+    ),
+)
+
+# Remove gridlines for a cleaner look
+fig.update_xaxes(showgrid=False)
+fig.update_yaxes(showgrid=False)
+
+fig.show()
+```
+
+## Exercise
+
+* Try different initial configurations, such as adding grains to multiple cells or starting with a random distribution of grains. Observe how the final patterns change with different initial conditions.
+* Try hexagonal or triangular grids instead of square grids. Change the toppling rule accordingly. What kind of patterns emerge?
+
+## References
+
+1. [Sandpile Model - Wikipedia](https://en.wikipedia.org/wiki/Abelian_sandpile_model)
+2. [Searching for a fast Abelian Sandpile implementation - Julien Palard](https://git.afpy.org/mdk/fast-abelian-sandpile): A repository with many implementations of the sandpile model in Python and C, including optimizations and visualizations.
+3. [Abelian sandpile model - Rosetta Code](https://rosettacode.org/wiki/Abelian_sandpile_model): Sandpile model implemented in many different programming languages.
+
+
+
